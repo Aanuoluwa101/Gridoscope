@@ -1,0 +1,46 @@
+version: '3.8'
+
+
+# what we're configuring is a kafka cluster 
+# we can have many brokers in a cluster for the sake of scalability and fault tolerance
+
+# we can have many controllers and still have "controller leader"
+
+# Controllers agree on metadata changes (topic creation, partition moves, etc.)
+
+
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.8.3
+    container_name: kafka-broker-1
+    ports:
+      - "9092:9092"
+
+    environment:
+      KAFKA_KRAFT_MODE: 'true'
+      CLUSTER_ID: "aea-kafka-cluster"  # as a broker, what cluster do I belong to
+      NODE_ID: 1   # kafka broker
+
+      KAFKA_PROCESS_ROLES: broker,controller # a broker can be both borker and controller in kraft mode 
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-broker-1:9093   # Who are the decision-makers (controllers) in this Kafka cluster?
+      # if you had more brokers with the controller roles, you'd add them here too - comma separated 
+      # That doesn't mean you have multiple active controllers. Those guys serve as backup controllers
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1 # How many brokers should store copies of this critical metadata?
+                                                               
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092, CONTORLLER://0.0.0.0:9093
+      # 9092 is for consumers and producers to talk to a node (clients)
+      # 9093 is for node-to-node communications. controllers can reach a node there for admin tasks
+
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_CONTROLLER_LISTENERS_NAMES: CONTROLLER
+
+      KAFKA_LOG_DIRS: tmp/kraft-combined-logs
+    
+    volumes:
+      - kafka_kraft:/var/lib/kafka/data
+
+
+volumes:
+  kafka_kraft:
+  
