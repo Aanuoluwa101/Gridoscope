@@ -26,8 +26,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from models.meter_profile import MeterProfile, RESIDENTIAL, INDUSTRIAL
-from config.settings import GridPulseConfig
+from producers.models.meter_profile import MeterProfile, RESIDENTIAL, INDUSTRIAL
+from producers.config.settings import GridoscopeConfig
 
 
 # ---------------------------------------------------------------------------
@@ -163,7 +163,7 @@ class MeterStateMachine:
     def __init__(
         self,
         profile: MeterProfile,
-        cfg: GridPulseConfig,
+        cfg: GridoscopeConfig,
         clock: SimulationClock,
         rng: random.Random,
     ):

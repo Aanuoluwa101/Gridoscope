@@ -18,8 +18,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
-from simulation.meter_state_machine import MeterStateMachine, SimulationClock
-from config.settings import GridPulseConfig
+from producers.simulation.meter_state_machine import MeterStateMachine, SimulationClock
+from producers.config.settings import GridoscopeConfig
 
 logger = logging.getLogger(__name__)
 
@@ -35,14 +35,14 @@ class ScenarioEngine:
 
     def __init__(
         self,
-        cfg: GridPulseConfig,
+        cfg: GridoscopeConfig,
         clock: SimulationClock,
         meters_by_zone: dict[str, list[MeterStateMachine]],
     ):
         """
         Parameters
         ----------
-        cfg             : full GridPulse config
+        cfg             : full Gridoscope config
         clock           : shared simulation clock
         meters_by_zone  : dict mapping zone_id → list of MeterStateMachine instances
                           The engine uses this to target specific zones when

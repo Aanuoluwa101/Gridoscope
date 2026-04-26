@@ -19,6 +19,15 @@ from datetime import datetime
 producer = Producer({"bootstrap.servers": "localhost:9092"})
 
 
+ZONE_PARTITION = {
+    "ZONE-NORTH":   0,
+    "ZONE-SOUTH":   1,
+    "ZONE-EAST":    2,
+    "ZONE-WEST":    3,
+    "ZONE-CENTRAL": 4,
+}
+
+
 def delivery_report(error, message):
     if error:
         print(f"  ❌ Delivery failed: {error}")
@@ -60,6 +69,7 @@ for zone in ZONES:
         topic="meter.readings",
         key=zone.encode("utf-8"),       # zone_id is the partition key
         value=json.dumps(event).encode("utf-8"),
+        partition=ZONE_PARTITION[zone],
         callback=delivery_report,
     )
 

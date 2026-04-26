@@ -22,11 +22,11 @@ import logging
 import random
 import sys
 
-from config.settings import GridPulseConfig
-from models.meter_profile import generate_meter_fleet, MeterProfile
-from simulation.meter_state_machine import MeterStateMachine, SimulationClock
-from simulation.scenario_engine import ScenarioEngine
-from kafka.kafka_producer import GridPulseProducer
+from producers.config.settings import GridoscopeConfig, ScenarioConfig
+from producers.models.meter_profile import generate_meter_fleet, MeterProfile
+from producers.simulation.meter_state_machine import MeterStateMachine, SimulationClock
+from producers.simulation.scenario_engine import ScenarioEngine
+from producers.simulation.kafka_producer import GridoscopeProducer
 
 # Configure logging — structured enough to be useful, not so verbose it scrolls forever
 logging.basicConfig(
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 async def run_meter(
     profile: MeterProfile,
     state_machine: MeterStateMachine,
-    producer: GridPulseProducer,
+    producer: GridoscopeProducer,
     jitter_range: float,
 ) -> None:
     """
@@ -80,7 +80,7 @@ async def run_meter(
 # Main simulation runner
 # ---------------------------------------------------------------------------
 
-async def run_simulation(cfg: GridPulseConfig) -> None:
+async def run_simulation(cfg: GridoscopeConfig) -> None:
     """
     Start and run the full simulation.
 
@@ -89,7 +89,7 @@ async def run_simulation(cfg: GridPulseConfig) -> None:
     interrupted (Ctrl+C) or an unhandled exception occurs.
     """
     logger.info("=" * 60)
-    logger.info("GridPulse Producer Engine starting")
+    logger.info("Gridoscope Producer Engine starting")
     logger.info("  Meters         : %d", cfg.simulation.total_meters)
     logger.info("  Speed          : %.1f×", cfg.simulation.speed_multiplier)
     logger.info("  Kafka broker   : %s", cfg.kafka.bootstrap_servers)
@@ -137,7 +137,7 @@ async def run_simulation(cfg: GridPulseConfig) -> None:
         logger.info("  %s: %d meters", zone, len(meters))
 
     # Step 5: Start the Kafka producer and run everything
-    async with GridPulseProducer(cfg.kafka) as producer:
+    async with GridoscopeProducer(cfg.kafka) as producer:
 
         # Scenario engine runs as a background coroutine
         scenario_engine = ScenarioEngine(
@@ -179,15 +179,15 @@ async def run_simulation(cfg: GridPulseConfig) -> None:
 
 def main():
     """
-    CLI entry point. Modify GridPulseConfig() here to customise the run.
+    CLI entry point. Modify GridoscopeConfig() here to customise the run.
 
     Examples:
 
     # Full-scale real-time run (production-like):
-    cfg = GridPulseConfig()
+    cfg = GridoscopeConfig()
 
     # Fast development run (10× speed, 50 meters, fixed seed):
-    cfg = GridPulseConfig(
+    cfg = GridoscopeConfig(
         simulation=SimulationConfig(
             speed_multiplier=10.0,
             total_meters=50,
@@ -196,21 +196,22 @@ def main():
     )
 
     # Point at a real MSK cluster:
-    cfg = GridPulseConfig(
+    cfg = GridoscopeConfig(
         kafka=KafkaConfig(bootstrap_servers="your-msk-endpoint:9092")
     )
     """
-    from config.settings import SimulationConfig, KafkaConfig
+    from producers.config.settings import SimulationConfig, KafkaConfig
 
-    cfg = GridPulseConfig(
+    cfg = GridoscopeConfig(
         simulation=SimulationConfig(
-            total_meters=500,
-            speed_multiplier=1.0,    # ← change to 10.0 for fast dev runs
-            random_seed=None,         # ← set to an int for reproducible runs
+            total_meters=5,
+            speed_multiplier=100,    # ← change to 10.0 for fast dev runs
+            random_seed=42,         # ← set to an int for reproducible runs
         ),
         kafka=KafkaConfig(
             bootstrap_servers="localhost:9092",
         ),
+        scenarios=ScenarioConfig(scenarios=[]),
     )
 
     try:

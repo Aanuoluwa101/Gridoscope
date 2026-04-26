@@ -1,5 +1,5 @@
 """
-settings.py — Central configuration for the GridPulse producer engine.
+settings.py — Central configuration for the Gridoscope producer engine.
 
 All tuneable parameters live here. Nothing is hardcoded in the simulation
 logic itself — this makes it easy to swap between a lightweight dev run
@@ -243,16 +243,16 @@ class ScenarioConfig:
 # ---------------------------------------------------------------------------
 
 @dataclass
-class GridPulseConfig:
+class GridoscopeConfig:
     """
     Aggregates all config sections into a single object.
 
     Usage:
-        from config.settings import GridPulseConfig
-        cfg = GridPulseConfig()
+        from config.settings import GridoscopeConfig
+        cfg = GridoscopeConfig()
 
     Or override specific values:
-        cfg = GridPulseConfig(
+        cfg = GridoscopeConfig(
             simulation=SimulationConfig(speed_multiplier=10.0, total_meters=50),
             kafka=KafkaConfig(bootstrap_servers="my-msk-endpoint:9092")
         )

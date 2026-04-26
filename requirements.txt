@@ -13,3 +13,6 @@ aiokafka==0.10.0
 # If you hit install issues on Windows, remove compression_type="snappy"
 # from kafka_producer.py and remove this line.
 python-snappy==0.7.3
+
+
+aiohttp

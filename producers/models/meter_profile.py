@@ -16,7 +16,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Optional
 
-from config.settings import GridPulseConfig
+from producers.config.settings import GridoscopeConfig
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ def _make_residential_profile(
     meter_id: str,
     zone_id: str,
     meter_index: int,
-    cfg: GridPulseConfig,
+    cfg: GridoscopeConfig,
     rng: random.Random,
 ) -> MeterProfile:
     """
@@ -161,7 +161,7 @@ def _make_commercial_profile(
     meter_id: str,
     zone_id: str,
     meter_index: int,
-    cfg: GridPulseConfig,
+    cfg: GridoscopeConfig,
     rng: random.Random,
 ) -> MeterProfile:
     """
@@ -202,7 +202,7 @@ def _make_industrial_profile(
     meter_id: str,
     zone_id: str,
     meter_index: int,
-    cfg: GridPulseConfig,
+    cfg: GridoscopeConfig,
     rng: random.Random,
 ) -> MeterProfile:
     """
@@ -244,7 +244,7 @@ def _make_industrial_profile(
 # Fleet generator — creates all 500 meter profiles at once
 # ---------------------------------------------------------------------------
 
-def generate_meter_fleet(cfg: GridPulseConfig) -> list[MeterProfile]:
+def generate_meter_fleet(cfg: GridoscopeConfig) -> list[MeterProfile]:
     """
     Generate the full fleet of meter profiles based on config.
 

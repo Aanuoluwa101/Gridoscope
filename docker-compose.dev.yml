@@ -27,8 +27,8 @@ version: "3.9"
 volumes:
   kafka-data:
     driver: local
-  schema-registry-data:
-    driver: local
+  # schema-registry-data:
+  #   driver: local
 
 # ---------------------------------------------------------------------------
 # Shared network — all containers talk to each other by service name.
@@ -199,40 +199,40 @@ services:
   #   GET  http://localhost:8081/subjects              — list all registered schemas
   #   GET  http://localhost:8081/subjects/{name}/versions/latest  — view a schema
   # ---------------------------------------------------------------------------
-  schema-registry:
-    image: confluentinc/cp-schema-registry:7.6.0
-    container_name: gridoscope-schema-registry
-    restart: unless-stopped
+  # schema-registry:
+  #   image: confluentinc/cp-schema-registry:7.6.0
+  #   container_name: gridoscope-schema-registry
+  #   restart: unless-stopped
 
-    depends_on:
-      kafka-broker:
-        condition: service_healthy   # wait for Kafka health check to pass
+  #   depends_on:
+  #     kafka-broker:
+  #       condition: service_healthy   # wait for Kafka health check to pass
 
-    ports:
-      - "8081:8081"
+  #   ports:
+  #     - "8081:8081"
 
-    networks:
-      - gridoscope-net
+  #   networks:
+  #     - gridoscope-net
 
-    volumes:
-      - schema-registry-data:/var/lib/schema-registry
+  #   volumes:
+  #     - schema-registry-data:/var/lib/schema-registry
 
-    environment:
-      # Use the internal listener — container-to-container traffic
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "INTERNAL://kafka-broker:29092"
+  #   environment:
+  #     # Use the internal listener — container-to-container traffic
+  #     SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "INTERNAL://kafka-broker:29092"
 
-      SCHEMA_REGISTRY_HOST_NAME: "schema-registry"
-      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8081"
+  #     SCHEMA_REGISTRY_HOST_NAME: "schema-registry"
+  #     SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8081"
 
-      # The Kafka topic Schema Registry uses to store its own data.
-      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 1
+  #     # The Kafka topic Schema Registry uses to store its own data.
+  #     SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 1
 
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8081/subjects || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 20s
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "curl -f http://localhost:8081/subjects || exit 1"]
+  #     interval: 15s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 20s
 
 
   # ---------------------------------------------------------------------------
@@ -269,8 +269,8 @@ services:
     depends_on:
       kafka-broker:
         condition: service_healthy
-      schema-registry:
-        condition: service_healthy
+      # schema-registry:
+      #   condition: service_healthy
 
     ports:
       - "8080:8080"
@@ -280,7 +280,7 @@ services:
 
     environment:
       KAFKA_BROKERS: "kafka-broker:29092"
-      KAFKA_SCHEMAREGISTRY_ENABLED: "true"
-      KAFKA_SCHEMAREGISTRY_URLS: "http://schema-registry:8081"
+      # KAFKA_SCHEMAREGISTRY_ENABLED: "true"
+      # KAFKA_SCHEMAREGISTRY_URLS: "http://schema-registry:8081"
       REDPANDA_ADMINAPI_ENABLED: "false"
       SERVER_LISTENPORT: 8080

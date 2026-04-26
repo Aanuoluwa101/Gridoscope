@@ -1,5 +1,5 @@
 """
-kafka_producer.py — Async Kafka producer wrapper for GridPulse.
+kafka_producer.py — Async Kafka producer wrapper for Gridoscope.
 
 Wraps aiokafka's AIOKafkaProducer with:
 - Connection lifecycle management (start / stop)
@@ -33,12 +33,20 @@ from producers.config.settings import KafkaConfig
 logger = logging.getLogger(__name__)
 
 
-class GridPulseProducer:
+ZONE_PARTITION = {
+    "ZONE-NORTH":   0,
+    "ZONE-SOUTH":   1,
+    "ZONE-EAST":    2,
+    "ZONE-WEST":    3,
+    "ZONE-CENTRAL": 4,
+}
+
+class GridoscopeProducer:
     """
     Async Kafka producer with connection lifecycle and routing logic.
 
     Usage:
-        async with GridPulseProducer(cfg) as producer:
+        async with GridoscopeProducer(cfg) as producer:
             await producer.send_event(event)
     """
 
@@ -76,10 +84,14 @@ class GridPulseProducer:
             # which is more efficient than sending one message at a time.
             linger_ms=self.cfg.linger_ms,
             # Maximum size of one batch in bytes.
-            batch_size=self.cfg.batch_size,
+            max_batch_size=self.cfg.batch_size,
+            
             # Retry failed sends up to this many times before giving up.
             # Between retries Kafka uses exponential backoff automatically.
-            retries=self.cfg.retries,
+            
+            # retries=self.cfg.retries,
+            retry_backoff_ms=self.cfg.retries,
+            
             # acks="all" means the broker waits for all in-sync replicas to
             # confirm before acknowledging. Slowest but most durable.
             # For a simulation project acks=1 (leader only) is fine.
@@ -118,8 +130,9 @@ class GridPulseProducer:
           per-zone aggregation without coordination between consumers.
         """
         if self._producer is None:
-            raise RuntimeError("Producer not started. Use 'async with GridPulseProducer(cfg)'")
+            raise RuntimeError("Producer not started. Use 'async with GridoscopeProducer(cfg)'")
 
+        partition = ZONE_PARTITION.get(event.zone_id, 0)
         key   = event.zone_id.encode("utf-8")
         value = event.to_json().encode("utf-8")
 
@@ -129,6 +142,7 @@ class GridPulseProducer:
                 topic=self.cfg.readings_topic,
                 key=key,
                 value=value,
+                partition=partition
             )
             self._events_sent += 1
 
