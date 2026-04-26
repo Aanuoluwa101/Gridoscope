@@ -8,7 +8,7 @@ services:
     ports:
       - "9092:9092"
     volumes:
-      - kafka1-data:/tmp/kraft-logs
+      - kafka1-data:/var/lib/kafka/data
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -19,7 +19,7 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /tmp/kraft-logs
-      KAFKA_CLUSTER_ID: kraft-cluster-1
+      CLUSTER_ID: q1Sh-9_ISia_zwGINzRvyQ
 
   kafka2:
     image: confluentinc/cp-kafka:7.6.0
@@ -37,7 +37,7 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /tmp/kraft-logs
-      KAFKA_CLUSTER_ID: kraft-cluster-1
+      CLUSTER_ID: q1Sh-9_ISia_zwGINzRvyQ
 
   kafka3:
     image: confluentinc/cp-kafka:7.6.0
@@ -55,7 +55,7 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /tmp/kraft-logs
-      KAFKA_CLUSTER_ID: kraft-cluster-1
+      CLUSTER_ID: q1Sh-9_ISia_zwGINzRvyQ
 
   kafka4:
     image: confluentinc/cp-kafka:7.6.0
@@ -69,11 +69,11 @@ services:
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka1:9093,2@kafka2:9093,3@kafka3:9093
       KAFKA_LISTENERS: PLAINTEXT://:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka4:9092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LOG_DIRS: /tmp/kraft-logs
-      KAFKA_CLUSTER_ID: kraft-cluster-1
+      CLUSTER_ID: q1Sh-9_ISia_zwGINzRvyQ
 
 
 volumes:

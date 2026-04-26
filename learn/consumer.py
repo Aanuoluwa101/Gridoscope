@@ -31,5 +31,3 @@ while True:
 
     value = msg.value().decode("utf-8") # convert to json string
     order = json.loads(value)
-    
-    

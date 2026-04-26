@@ -1,0 +1,6 @@
+1. CLUSTER_ID not KAFKA_CLUSTER_ID
+2. base64 string expected, not just anything
+3. I configured KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER on a broker only node, 
+it asked me to set up a security map for it. The node died but other ones continued
+I tried removing this variable since it's a broker only node but it seems it's needed
+

@@ -1,0 +1,286 @@
+# =============================================================================
+# Gridoscope — Development Kafka Cluster
+# =============================================================================
+#
+# What this file runs:
+#   1. kafka-broker     — Single Kafka broker in KRaft mode (no ZooKeeper)
+#   2. schema-registry  — Confluent Schema Registry (enforces event schemas)
+#   3. kafka-ui         — Redpanda Console (visual topic/consumer group browser)
+#
+# Start:   docker compose -f docker/docker-compose.dev.yml up -d
+# Stop:    docker compose -f docker/docker-compose.dev.yml down
+# Destroy: docker compose -f docker/docker-compose.dev.yml down -v   ← wipes all data
+#
+# Ports exposed to your machine (localhost):
+#   9092  — Kafka broker  (your producer and consumer connect here)
+#   8081  — Schema Registry REST API
+#   8080  — Kafka UI      (open in browser)
+#
+# =============================================================================
+
+version: "3.9"
+
+# ---------------------------------------------------------------------------
+# Named volumes — persistent storage so topic data survives container restarts.
+# Run 'docker compose down -v' to wipe everything and start fresh.
+# ---------------------------------------------------------------------------
+volumes:
+  kafka-data:
+    driver: local
+  schema-registry-data:
+    driver: local
+
+# ---------------------------------------------------------------------------
+# Shared network — all containers talk to each other by service name.
+# e.g. schema-registry reaches Kafka at kafka-broker:29092 (internal port).
+# Your producer on the host reaches Kafka at localhost:9092 (external port).
+# ---------------------------------------------------------------------------
+networks:
+  gridoscope-net:
+    driver: bridge
+
+# =============================================================================
+services:
+
+  # ---------------------------------------------------------------------------
+  # Kafka broker — KRaft mode (no ZooKeeper)
+  # ---------------------------------------------------------------------------
+  kafka-broker:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: gridoscope-kafka
+    restart: unless-stopped
+
+    ports:
+      # 9092  — external port. Your producer/consumer on the host uses this.
+      # 29092 — internal port. Other containers use this (schema-registry, etc.)
+      - "9092:9092"
+
+    volumes:
+      # Persist Kafka log data between restarts.
+      # Without this volume, all topic data is lost on every container restart.
+      - kafka-data:/var/lib/kafka/data
+
+    networks:
+      - gridoscope-net
+
+    environment:
+      # -----------------------------------------------------------------
+      # KRaft identity
+      #
+      # Every broker needs a unique numeric ID and must declare its roles.
+      # In single-broker dev mode, one node acts as both broker and controller.
+      # -----------------------------------------------------------------
+
+      KAFKA_BROKER_ID: 1
+
+      # Cluster-wide UUID — all brokers in the same cluster share this value.
+      # Generate a fresh one with:
+      #   docker run --rm confluentinc/cp-kafka:7.6.0 kafka-storage random-uuid
+      # We hardcode it here so the dev cluster is deterministic across restarts.
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+
+      # This node handles both data (broker role) and cluster metadata (controller role).
+      # In a 3-broker prod setup you'd dedicate one node as controller-only.
+      KAFKA_PROCESS_ROLES: "broker,controller"
+
+      # The controller quorum — which nodes participate in leader election.
+      # Format: broker_id@host:controller_port
+      # One node here because we only have one broker in dev.
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka-broker:29093"
+
+      # -----------------------------------------------------------------
+      # Listener configuration
+      #
+      # Kafka separates HOW it listens (KAFKA_LISTENERS) from WHAT it tells
+      # clients to connect to (KAFKA_ADVERTISED_LISTENERS). These must align
+      # or clients can't reconnect after the initial metadata handshake.
+      #
+      # Three listener names:
+      #   PLAINTEXT   — host machine connections (port 9092)
+      #   INTERNAL    — container-to-container connections (port 29092)
+      #   CONTROLLER  — KRaft metadata traffic (port 29093, internal only)
+      # -----------------------------------------------------------------
+
+      # Bind addresses — 0.0.0.0 means "accept on all network interfaces"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,INTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093"
+
+      # What Kafka advertises to connecting clients for follow-up connections.
+      # External (host) clients must reach localhost:9092.
+      # Internal (container) clients must reach kafka-broker:29092.
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9092,INTERNAL://kafka-broker:29092"
+
+      # Map each listener name to a security protocol.
+      # PLAINTEXT = no encryption (fine for dev). Use SSL in prod.
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT"
+
+      # Which listener handles replication traffic between brokers.
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+
+      # Which listener the KRaft controller uses for its own metadata traffic.
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+
+      # -----------------------------------------------------------------
+      # Topic defaults
+      #
+      # These apply to auto-created topics. Our setup script creates topics
+      # explicitly with the right settings, but these are safe fallbacks.
+      # -----------------------------------------------------------------
+
+      # Replication factor must be <= number of brokers. Dev has 1 broker → 1.
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+
+      # Default partition count for auto-created topics.
+      KAFKA_NUM_PARTITIONS: 5
+
+      # Min in-sync replicas required for a write to succeed.
+      # With replication factor 1, this must also be 1.
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+
+      # -----------------------------------------------------------------
+      # Log retention
+      #
+      # meter.readings — 24 hours.
+      #   The S3 Sink Connector persists everything to S3 within minutes.
+      #   24h retention gives a replay buffer if the connector falls behind.
+      #
+      # meter.alerts — 7 days (set explicitly in topic creation script).
+      #   Alerts are low volume. Longer retention means you can replay them
+      #   if your alert consumer was offline for a while.
+      # -----------------------------------------------------------------
+      KAFKA_LOG_RETENTION_HOURS: 24
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000   # check every 5 minutes
+
+      # Max size of one log segment file before Kafka rolls to a new one.
+      # 100MB is right for dev. Default 1GB is too large for a laptop.
+      KAFKA_LOG_SEGMENT_BYTES: 104857600
+
+      # -----------------------------------------------------------------
+      # Performance — conservative values for a dev laptop.
+      # -----------------------------------------------------------------
+      KAFKA_NUM_NETWORK_THREADS: 3
+      KAFKA_NUM_IO_THREADS: 8
+      KAFKA_SOCKET_SEND_BUFFER_BYTES: 102400
+      KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: 102400
+      KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600
+
+      # -----------------------------------------------------------------
+      # Consumer offset storage — where Kafka tracks each consumer group's
+      # position in each partition. Replication factor 1 for dev.
+      # -----------------------------------------------------------------
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_OFFSETS_FLUSH_INTERVAL_MS: 5000
+
+      # Transaction support — needed if you later add exactly-once semantics.
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+    # Health check — Kafka is ready when it can list topics.
+    # schema-registry and kafka-ui won't start until this passes.
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s   # give KRaft time to initialise before first check
+
+
+  # ---------------------------------------------------------------------------
+  # Schema Registry
+  #
+  # Maintains a versioned registry of schemas for your Kafka topics.
+  # Producers register their event schema on first write. Consumers fetch it
+  # to deserialise messages. Breaking schema changes are rejected automatically.
+  #
+  # Your events are plain JSON today — Schema Registry isn't enforcing anything
+  # yet. But it's here so you can add schema enforcement incrementally.
+  # That's a one-line change in the producer config when you're ready.
+  #
+  # Useful endpoints once running:
+  #   GET  http://localhost:8081/subjects              — list all registered schemas
+  #   GET  http://localhost:8081/subjects/{name}/versions/latest  — view a schema
+  # ---------------------------------------------------------------------------
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.6.0
+    container_name: gridoscope-schema-registry
+    restart: unless-stopped
+
+    depends_on:
+      kafka-broker:
+        condition: service_healthy   # wait for Kafka health check to pass
+
+    ports:
+      - "8081:8081"
+
+    networks:
+      - gridoscope-net
+
+    volumes:
+      - schema-registry-data:/var/lib/schema-registry
+
+    environment:
+      # Use the internal listener — container-to-container traffic
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "INTERNAL://kafka-broker:29092"
+
+      SCHEMA_REGISTRY_HOST_NAME: "schema-registry"
+      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8081"
+
+      # The Kafka topic Schema Registry uses to store its own data.
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 1
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/subjects || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+
+  # ---------------------------------------------------------------------------
+  # Kafka UI — Redpanda Console
+  #
+  # Browser dashboard: http://localhost:8080
+  #
+  # The most useful things you'll do here during development:
+  #
+  #   Messages tab
+  #     Browse meter.readings and meter.alerts in real time.
+  #     Filter by partition (zone) to confirm zone_id partitioning is working.
+  #     Inspect individual event payloads — verify your schema looks right.
+  #
+  #   Consumer Groups tab
+  #     Watch consumer group lag per partition.
+  #     Lag = latest_offset - consumer_committed_offset.
+  #     If lag is growing, your consumer isn't keeping up.
+  #     At 160 events/minute your lag should stay near zero.
+  #
+  #   Topics tab
+  #     Verify partition count, replication factor, and retention settings
+  #     after running the topic creation script.
+  #
+  #   Offsets tab
+  #     Manually reset a consumer group offset during testing — useful when
+  #     you want to replay events from the beginning without restarting Kafka.
+  # ---------------------------------------------------------------------------
+  kafka-ui:
+    image: redpandadata/console:v2.4.3
+    container_name: gridoscope-kafka-ui
+    restart: unless-stopped
+
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+
+    ports:
+      - "8080:8080"
+
+    networks:
+      - gridoscope-net
+
+    environment:
+      KAFKA_BROKERS: "kafka-broker:29092"
+      KAFKA_SCHEMAREGISTRY_ENABLED: "true"
+      KAFKA_SCHEMAREGISTRY_URLS: "http://schema-registry:8081"
+      REDPANDA_ADMINAPI_ENABLED: "false"
+      SERVER_LISTENPORT: 8080

@@ -31,6 +31,7 @@ value = json.dumps(order).encode("utf-8")
 producer.produce(
     topic="orders", 
     value=value,
+    partition=0, # optional, if not specified, the producer will use a partitioner to determine which partition to send the message to
     callback=delivery_report
     )
 

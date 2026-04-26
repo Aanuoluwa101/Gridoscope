@@ -1,0 +1,15 @@
+# GridPulse Producer — Python dependencies
+#
+# Install with:
+#   pip install -r requirements.txt
+#
+# Python 3.10+ required (uses match statements and type hint syntax from 3.10)
+
+# Async Kafka client — the async equivalent of kafka-python.
+# AIOKafkaProducer is what lets us run 500 meter coroutines on one thread.
+aiokafka==0.10.0
+
+# python-snappy is required for snappy compression in aiokafka.
+# If you hit install issues on Windows, remove compression_type="snappy"
+# from kafka_producer.py and remove this line.
+python-snappy==0.7.3
