@@ -3,3 +3,4 @@ __pycache__/
 infra/snowflake_tf_key.p8
 infra/snowflake_tf_key.pub
 raw/
+infra/.terraform/
