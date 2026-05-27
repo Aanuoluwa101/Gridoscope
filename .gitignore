@@ -3,4 +3,27 @@ __pycache__/
 infra/snowflake_tf_key.p8
 infra/snowflake_tf_key.pub
 raw/
-infra/.terraform/
+
+# Terraform
+infra/**/.terraform/
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/*.tfvars
+infra/*.tfvars.json
+infra/crash.log
+infra/crash.*.log
+infra/override.tf
+infra/override.tf.json
+infra/*_override.tf
+infra/*_override.tf.json
+infra/.terraform.lock.hcl
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
