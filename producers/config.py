@@ -8,6 +8,7 @@ and a full-scale production-like simulation without touching any other file.
 
 from dataclasses import dataclass, field
 from typing import Optional
+from datetime import datetime
 
 
 # ---------------------------------------------------------------------------
@@ -63,9 +64,14 @@ class SimulationConfig:
     can generate hours of data in minutes.
     """
 
+    # Simulation start time. None means start from current real time.
+    # Set this to a specific datetime to replay from a fixed point.
+    # e.g. sim_start=datetime(2026, 1, 1, 6, 0, 0) starts at 6am on Jan 1
+    sim_start: Optional[datetime] = None
+
     # Total number of meters to simulate.
     # 500 is realistic for a medium-sized district utility deployment.
-    total_meters: int = 5
+    total_meters: int = 500
 
     # Mix of customer types across the meter fleet.
     # These should sum to 1.0.
@@ -92,7 +98,7 @@ class SimulationConfig:
     #
     # Use high values (60-120) to rapidly generate historical data for testing.
     # Use 1-2 for a realistic live demo where the dashboard updates feel natural.
-    speed_multiplier: float = 200 # 1.0
+    speed_multiplier: float = 1.0
 
     # Jitter range in seconds added to each meter's sleep interval.
     # Without jitter, all 500 meters fire at exactly the same second,

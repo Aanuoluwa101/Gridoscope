@@ -26,9 +26,9 @@ from typing import Optional
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError
 
-from producers.models.meter_profile import MeterProfile
-from producers.simulation.meter_state_machine import MeterEvent
-from producers.config.settings import KafkaConfig
+from meter_profile import MeterProfile
+from meter_state_machine import MeterEvent
+from config import KafkaConfig
 
 logger = logging.getLogger(__name__)
 

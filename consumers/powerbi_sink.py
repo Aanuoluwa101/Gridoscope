@@ -112,6 +112,7 @@ class PowerBISink:
         Power BI expects a JSON array — even for a single row.
         """
         if not self.cfg.enabled:
+            # print("\n POWERBI NOT ENABLED\n")
             self._print_aggregate(aggregate)
             return
 
@@ -132,6 +133,7 @@ class PowerBISink:
                         "[PowerBI] Pushed aggregate for %s | window=%s",
                         aggregate.zone_id, aggregate.window_end_ts
                     )
+                    self._print_aggregate(aggregate)
                 else:
                     body = await response.text()
                     self._error_count += 1

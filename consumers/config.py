@@ -122,8 +122,7 @@ class PowerBIConfig:
     # Power BI streaming dataset push URL.
     # Get this from Power BI: New Dashboard → Add Tile → Streaming Dataset
     # → API → Create → copy the "Push URL" here.
-    push_url: str = "https://api.powerbi.com/beta/8c22ea0a-63a5-44e1-bb22-e44db5cc72e3/datasets/64c0422a-b30d-4cd2-9b2b-8b24cbb682ca/rows?experience=power-bi&key=5iiD9fYub39Lk7HmFs8gh5Bl8S4NKjoZjOH20SuEMMxHl7QdHf2g79KKypKsOaDSwx0iW%2BfHK5PtG5ieV1inMg%3D%3D"
-
+    push_url: str = ""
     # How many zone aggregates to batch before pushing.
     # 1 = push immediately after every window close (lowest latency).
     # Higher = fewer HTTP calls but slightly more latency.

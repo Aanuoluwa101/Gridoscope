@@ -18,8 +18,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
-from producers.simulation.meter_state_machine import MeterStateMachine, SimulationClock
-from producers.config.settings import GridoscopeConfig
+from meter_state_machine import MeterStateMachine, SimulationClock
+from config import GridoscopeConfig
 
 logger = logging.getLogger(__name__)
 

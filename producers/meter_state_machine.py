@@ -26,8 +26,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from producers.models.meter_profile import MeterProfile, RESIDENTIAL, INDUSTRIAL
-from producers.config.settings import GridoscopeConfig
+from meter_profile import MeterProfile, RESIDENTIAL, INDUSTRIAL
+from config import GridoscopeConfig
 
 
 # ---------------------------------------------------------------------------

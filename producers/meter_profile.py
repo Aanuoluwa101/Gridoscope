@@ -16,7 +16,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Optional
 
-from producers.config.settings import GridoscopeConfig
+from config import GridoscopeConfig
 
 
 # ---------------------------------------------------------------------------

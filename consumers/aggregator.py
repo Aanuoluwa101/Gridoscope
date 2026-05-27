@@ -297,11 +297,33 @@ class ZoneAggregator:
         # from datetime import datetime, timezone
         # end_ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         # return self._close_window(end_ts)
-        return self._close_window(self._last_event_timestamp)
+        bucketed = self._get_window_bucket(self._last_event_timestamp)  # ← add this
+        return self._close_window(bucketed)
 
     # -----------------------------------------------------------------------
     # Internal helpers
     # -----------------------------------------------------------------------
+    
+    @staticmethod
+    def _get_window_bucket(timestamp: str) -> str:
+        """
+        Round a simulated timestamp down to the nearest 5-minute boundary.
+
+        All zones use the same fixed boundaries regardless of when their
+        first event arrived — so ZONE-NORTH and ZONE-SOUTH both seal at
+        14:55:00 instead of 14:52:01 and 14:56:03 respectively.
+
+        This makes MAX(window_end_ts) in Power BI reliably match all 5
+        zones simultaneously rather than picking just the latest one.
+        """
+        from datetime import datetime, timedelta
+        dt = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
+        floored = dt - timedelta(
+            minutes=dt.minute % 5,
+            seconds=dt.second,
+        )
+        return floored.strftime("%Y-%m-%dT%H:%M:%SZ")
+
 
     def _window_expired(self, now: float) -> bool:
         """
@@ -315,16 +337,18 @@ class ZoneAggregator:
         return (now - self._window_opened_at) >= self._window_size_wall
 
     def _open_new_window(self, timestamp: str, now: float) -> None:
+        bucketed_start = self._get_window_bucket(timestamp)     # ← add this
         self._current_bucket = WindowBucket(
             zone_id=self.zone_id,
             opened_at=now,
-            window_start=timestamp,
+            window_start=bucketed_start,                        # ← use bucketed
         )
         self._window_opened_at = now
 
     def _close_window(self, end_timestamp: str) -> ZoneAggregate:
+        bucketed_end = self._get_window_bucket(end_timestamp)
         aggregate = self._current_bucket.seal(
-            window_end_ts=end_timestamp,
+            window_end_ts=bucketed_end,                         # ← use bucketed
             expected_meter_count=self.expected_meter_count,
             prev_total_kwh=self._prev_total_kwh,
         )

@@ -21,12 +21,13 @@ import asyncio
 import logging
 import random
 import sys
+from datetime import datetime
 
-from producers.config.settings import GridoscopeConfig, ScenarioConfig
-from producers.models.meter_profile import generate_meter_fleet, MeterProfile
-from producers.simulation.meter_state_machine import MeterStateMachine, SimulationClock
-from producers.simulation.scenario_engine import ScenarioEngine
-from producers.simulation.kafka_producer import GridoscopeProducer
+from config import GridoscopeConfig, ScenarioConfig
+from meter_profile import generate_meter_fleet, MeterProfile
+from meter_state_machine import MeterStateMachine, SimulationClock
+from scenario_engine import ScenarioEngine
+from kafka_producer import GridoscopeProducer
 
 # Configure logging — structured enough to be useful, not so verbose it scrolls forever
 logging.basicConfig(
@@ -106,7 +107,10 @@ async def run_simulation(cfg: GridoscopeConfig) -> None:
     # Step 2: Create a shared simulation clock
     # All meters and the scenario engine share this single clock instance
     # so everyone agrees on what time it is.
-    clock = SimulationClock(speed_multiplier=cfg.simulation.speed_multiplier)
+    clock = SimulationClock(
+        speed_multiplier=cfg.simulation.speed_multiplier,
+        sim_start=cfg.simulation.sim_start, 
+        )
 
     # Step 3: Create a MeterStateMachine for each profile
     # We use a separate RNG per state machine (seeded from the profile index)
@@ -200,13 +204,14 @@ def main():
         kafka=KafkaConfig(bootstrap_servers="your-msk-endpoint:9092")
     )
     """
-    from producers.config.settings import SimulationConfig, KafkaConfig
+    from config import SimulationConfig, KafkaConfig
 
     cfg = GridoscopeConfig(
         simulation=SimulationConfig(
             total_meters=5,
             speed_multiplier=100,    # ← change to 10.0 for fast dev runs
             random_seed=42,         # ← set to an int for reproducible runs
+            sim_start=datetime(2026, 5, 19, 4, 0, 0),
         ),
         kafka=KafkaConfig(
             bootstrap_servers="localhost:9092",

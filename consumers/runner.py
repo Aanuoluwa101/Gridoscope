@@ -43,11 +43,11 @@ logger = logging.getLogger(__name__)
 # hardcoding it — but for this project keeping it here is fine.
 # ---------------------------------------------------------------------------
 METERS_PER_ZONE: dict[str, int] = {
-    "ZONE-NORTH":   1,
-    "ZONE-SOUTH":   1,
-    "ZONE-EAST":    1,
-    "ZONE-WEST":    1,
-    "ZONE-CENTRAL": 1,
+    "ZONE-NORTH":   100,
+    "ZONE-SOUTH":   100,
+    "ZONE-EAST":    100,
+    "ZONE-WEST":    100,
+    "ZONE-CENTRAL": 100,
 }
 
 
@@ -138,8 +138,8 @@ def main():
             ema_alpha=0.2,
         ),
         powerbi=PowerBIConfig(
-            enabled=False,                   # flip to True with a push_url when ready
-            push_url=os.environ.get("POWERBI_PUSH_URL", ""),
+            enabled=True,                   # flip to True with a push_url when ready
+            push_url=os.environ.get("POWERBI_PUSH_URL", "https://api.powerbi.com/beta/8c22ea0a-63a5-44e1-bb22-e44db5cc72e3/datasets/64c0422a-b30d-4cd2-9b2b-8b24cbb682ca/rows?experience=power-bi&key=5iiD9fYub39Lk7HmFs8gh5Bl8S4NKjoZjOH20SuEMMxHl7QdHf2g79KKypKsOaDSwx0iW%2BfHK5PtG5ieV1inMg%3D%3D"),
         ),
     )
 

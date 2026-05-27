@@ -38,13 +38,13 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "producer"))
 
-from config.settings import (
+from config import (
     GridPulseConfig, KafkaConfig, SimulationConfig,
     IntervalConfig, FaultConfig, ScenarioConfig,
 )
-from models.meter_profile import generate_meter_fleet, RESIDENTIAL, COMMERCIAL, INDUSTRIAL
-from simulation.meter_state_machine import MeterStateMachine, SimulationClock, MeterEvent
-from simulation.scenario_engine import ScenarioEngine
+from meter_profile import generate_meter_fleet, RESIDENTIAL, COMMERCIAL, INDUSTRIAL
+from meter_state_machine import MeterStateMachine, SimulationClock, MeterEvent
+from scenario_engine import ScenarioEngine
 
 
 # ---------------------------------------------------------------------------
