@@ -3,10 +3,10 @@ output "storage_integration_name" {
   value       = snowflake_storage_integration.s3_int.name
 }
 
-output "stage_name" {
-  description = "Name of the Snowflake external stage"
-  value       = snowflake_stage.gridoscope_stage.name
-}
+# output "stage_name" {
+#   description = "Name of the Snowflake external stage"
+#   value       = snowflake_stage.gridoscope_stage.name
+# }
 
 output "snowflake_iam_user_arn" {
   description = "IAM user ARN Snowflake uses to assume the role — useful for debugging"
