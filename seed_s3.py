@@ -3,7 +3,7 @@ import os
 import boto3
 import tempfile
 
-df = pd.read_json('data.jsonl', lines=True)
+df = pd.read_json('data3.jsonl', lines=True)
 
 df['timestamp'] = pd.to_datetime(df['timestamp'])
 df['year']  = df['timestamp'].dt.year

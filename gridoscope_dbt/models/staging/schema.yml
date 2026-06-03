@@ -1,0 +1,30 @@
+version: 2
+
+sources:
+  - name: raw
+    database: SNOWFLAKE_LEARNING_DB
+    schema: RAW
+    tables:
+      - name: meter_events
+        description: Raw meter events loaded from S3 by COPY INTO
+
+models:
+  - name: stg_meter_readings
+    description: Typed and cleaned meter readings from raw events
+    columns:
+      - name: meter_id
+        tests:
+          - not_null
+      - name: zone
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ZONE-NORTH', 'ZONE-SOUTH', 'ZONE-EAST', 'ZONE-WEST', 'ZONE-CENTRAL']
+      - name: kwh
+        tests:
+          - not_null
+      - name: meter_state
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['normal', 'degraded', 'fault', 'silent']
