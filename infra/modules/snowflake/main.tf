@@ -7,6 +7,8 @@ terraform {
   }
 }
 
+
+# created first with hardcoded role arn
 resource "snowflake_storage_integration" "s3_int" {
   name                      = "S3_GRIDOSCOPE_INT_${upper(var.environment)}"
   type                      = "EXTERNAL_STAGE"
@@ -17,13 +19,13 @@ resource "snowflake_storage_integration" "s3_int" {
 }
 
 
-# resource "snowflake_stage" "gridoscope_stage" {
-#   name                = "GRIDOSCOPE_STAGE_${upper(var.environment)}"
-#   database            = var.snowflake_database
-#   schema              = var.snowflake_schema
-#   storage_integration = snowflake_storage_integration.s3_int.name
-#   url                 = "s3://${var.bucket_name}/raw/meter-readings/"
-# }
+resource "snowflake_stage" "gridoscope_stage" {
+  name                = "GRIDOSCOPE_STAGE_${upper(var.environment)}"
+  database            = var.snowflake_database
+  schema              = var.snowflake_schema
+  storage_integration = snowflake_storage_integration.s3_int.name
+  url                 = "s3://${var.bucket_name}/"
+}
 
 
 resource "aws_iam_role" "gridoscope_snowflake_role" {

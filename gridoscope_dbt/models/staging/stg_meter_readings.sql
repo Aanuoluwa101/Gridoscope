@@ -85,7 +85,7 @@ parsed AS (
         --                 Use for incremental load logic.
         -- ----------------------------------------------------------------
         src:timestamp::TIMESTAMP_NTZ        AS reading_ts,
-        src:_kafka_timestamp::TIMESTAMP_NTZ     AS kafka_ingested_at,
+        -- src:_kafka_timestamp::TIMESTAMP_NTZ     AS kafka_ingested_at,
         load_ts,
 
         -- ----------------------------------------------------------------
@@ -218,7 +218,7 @@ enriched AS (
             WHEN customer_type = 'residential' THEN ABS(voltage - 120) / 120
             WHEN customer_type = 'commercial'  THEN ABS(voltage - 240) / 240
             WHEN customer_type = 'industrial'  THEN ABS(voltage - 480) / 480
-        END                                                             AS voltage_deviation_pct,
+        END                                                             AS voltage_deviation_pct
 
         -- ----------------------------------------------------------------
         -- Pipeline latency
@@ -227,11 +227,11 @@ enriched AS (
         -- pipeline health — if this grows over time something is slowing down.
         -- NULL when kafka_ingested_at is missing (shouldn't happen in production).
         -- ----------------------------------------------------------------
-        DATEDIFF(
-            'second',
-            kafka_ingested_at,
-            load_ts
-        )                                                               AS pipeline_latency_seconds
+        -- DATEDIFF(
+        --     'second',
+        --     kafka_ingested_at,
+        --     load_ts
+        -- )                                                               AS pipeline_latency_seconds
 
     FROM parsed
 

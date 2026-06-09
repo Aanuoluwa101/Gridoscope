@@ -25,3 +25,26 @@ aws iam list-attached-user-policies \
 aws iam create-access-key \
   --user-name gridoscope-kafka-connect-dev
 
+
+
+curl http://localhost:8083/connectors
+
+curl -X POST \
+  -H "Content-Type: application/json" \
+  --data @s3_sink_readings.json \
+  http://localhost:8083/connectors
+
+# Check it's running
+curl -s http://localhost:8083/connectors/gridoscope-s3-sink-readings/status | python -m json.tool
+
+
+
+
+# Delete existing connector
+curl -X DELETE http://localhost:8083/connectors/gridoscope-s3-sink-readings
+
+# Redeploy with updated config
+curl -X POST \
+  -H "Content-Type: application/json" \
+  --data @docker/s3_sink_readings.json \
+  http://localhost:8083/connectors

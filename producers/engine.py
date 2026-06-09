@@ -211,7 +211,7 @@ def main():
             total_meters=5,
             speed_multiplier=100,    # ← change to 10.0 for fast dev runs
             random_seed=42,         # ← set to an int for reproducible runs
-            sim_start=datetime(2026, 5, 19, 4, 0, 0),
+            sim_start=datetime(2026, 6, 6, 17, 0, 0),
         ),
         kafka=KafkaConfig(
             bootstrap_servers="localhost:9092",
