@@ -10,7 +10,7 @@ an Exponential Moving Average (EMA). The 6am baseline only compares against
 previous 6am readings — not against 3am trough readings.
 
 One AnomalyDetector instance is created per meter in the consumer.
-It persists in memory for the life of the consumer process.
+It persists in memory for the life of the consumer process. 
 """
 
 from collections import defaultdict
