@@ -34,3 +34,5 @@ logs/
 s3-sink-dev-setup.sh
 
 notes.txt
+profiles.yml
+gridoscope_dbt/.user.yml

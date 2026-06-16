@@ -1,11 +1,7 @@
-from airflow.decorators import dag
-from datetime import datetime, timedelta
-from airflow.operators.python import PythonOperator
-from airflow.operators.empty import EmptyOperator
-
 from airflow.decorators import dag, task
 from datetime import datetime, timedelta
 from airflow.operators.empty import EmptyOperator
+
 
 
 @dag(
