@@ -34,11 +34,11 @@ resource "aws_iam_role" "gridoscope_snowflake_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect    = "Allow"
+      Effect = "Allow"
       Principal = {
         AWS = snowflake_storage_integration.s3_int.storage_aws_iam_user_arn
       }
-      Action    = "sts:AssumeRole"
+      Action = "sts:AssumeRole"
       Condition = {
         StringEquals = {
           "sts:ExternalId" = snowflake_storage_integration.s3_int.storage_aws_external_id

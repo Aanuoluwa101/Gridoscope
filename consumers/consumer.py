@@ -89,10 +89,21 @@ class ZoneConsumer:
 
     async def start(self) -> None:
         """Initialise the Kafka consumer and assign the partition."""
-        logger.info("[Consumer][%s] Starting on partition %d", self.zone_id, self.partition)
+        logger.info("[Consumer][%s] Starting on partition %d (%s)",
+                    self.zone_id, self.partition, self.cfg.kafka.security_protocol)
+
+        auth_kwargs = {}
+        if self.cfg.kafka.security_protocol == "SASL_SSL":
+            from msk_iam_auth import MSKIAMTokenProvider
+            auth_kwargs = dict(
+                security_protocol="SASL_SSL",
+                sasl_mechanism="OAUTHBEARER",
+                sasl_oauth_token_provider=MSKIAMTokenProvider(region=self.cfg.kafka.aws_region),
+            )
 
         self._consumer = AIOKafkaConsumer(
             bootstrap_servers=self.cfg.kafka.bootstrap_servers,
+            **auth_kwargs,
 
             # Consumer group ID — all 5 zone consumers share this group.
             # Kafka uses this to track committed offsets per group.

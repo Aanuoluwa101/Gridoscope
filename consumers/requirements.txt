@@ -1,0 +1,8 @@
+# Consumer container dependencies — see producers/requirements.txt for why
+# this is separate from the root requirements.txt.
+
+aiokafka==0.10.0
+python-snappy==0.7.3
+aiohttp
+aws-msk-iam-sasl-signer-python==1.0.2
+boto3

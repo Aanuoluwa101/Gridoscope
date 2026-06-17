@@ -38,17 +38,23 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Meter count per zone
 # Needed by ZoneAggregator to detect silent meters.
-# Must match the fleet distribution from producer/config/settings.py.
+# Must match the fleet distribution the producer generates — producer assigns
+# zones round-robin (meter_index % n_zones), so the count just needs to match
+# TOTAL_METERS split evenly across zones, with the remainder going to the
+# first few zones in list order.
 # In production you'd fetch this from a metadata store rather than
-# hardcoding it — but for this project keeping it here is fine.
+# computing it — but for this project keeping it here is fine.
 # ---------------------------------------------------------------------------
-METERS_PER_ZONE: dict[str, int] = {
-    "ZONE-NORTH":   1,
-    "ZONE-SOUTH":   1,
-    "ZONE-EAST":    1,
-    "ZONE-WEST":    1,
-    "ZONE-CENTRAL": 1,
-}
+def _meters_per_zone(total_meters: int) -> dict[str, int]:
+    zones = list(ZONE_PARTITION.keys())
+    base, remainder = divmod(total_meters, len(zones))
+    return {
+        zone: base + (1 if i < remainder else 0)
+        for i, zone in enumerate(zones)
+    }
+
+
+METERS_PER_ZONE: dict[str, int] = _meters_per_zone(int(os.environ.get("TOTAL_METERS", "5")))
 
 
 async def run_consumer_group(cfg: ConsumerConfig) -> None:
@@ -119,8 +125,10 @@ def main():
     """
     cfg = ConsumerConfig(
         kafka=KafkaConsumerConfig(
-            bootstrap_servers="localhost:9092",
-            auto_offset_reset="latest",   # change to "latest" in production
+            bootstrap_servers=os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
+            security_protocol=os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT"),
+            aws_region=os.environ.get("AWS_REGION", "us-east-1"),
+            auto_offset_reset="latest",
         ),
         aggregation=AggregationConfig(
             # Must match the speed_multiplier in producer/engine.py.
@@ -130,7 +138,7 @@ def main():
             # speed_multiplier=1.0  → real time, windows close every 5 real minutes
             # speed_multiplier=10.0 → 10× faster, windows close every 30 real seconds
             # speed_multiplier=60.0 → 60× faster, windows close every 5 real seconds
-            speed_multiplier=100,            # ← match producer's speed_multiplier
+            speed_multiplier=float(os.environ.get("SPEED_MULTIPLIER", "100")),  # ← match producer's speed_multiplier
 
             window_size_seconds=300,         # 5 simulated minutes per window
             silence_threshold_seconds=120,   # 2 simulated minutes before flagging silence
@@ -138,8 +146,8 @@ def main():
             ema_alpha=0.2,
         ),
         powerbi=PowerBIConfig(
-            enabled=False,                   # flip to True with a push_url when ready
-            push_url=os.environ.get("POWERBI_PUSH_URL", "https://api.powerbi.com/beta/8c22ea0a-63a5-44e1-bb22-e44db5cc72e3/datasets/64c0422a-b30d-4cd2-9b2b-8b24cbb682ca/rows?experience=power-bi&key=5iiD9fYub39Lk7HmFs8gh5Bl8S4NKjoZjOH20SuEMMxHl7QdHf2g79KKypKsOaDSwx0iW%2BfHK5PtG5ieV1inMg%3D%3D"),
+            enabled=os.environ.get("POWERBI_ENABLED", "false").lower() == "true",
+            push_url=os.environ.get("POWERBI_PUSH_URL", ""),
         ),
     )
 

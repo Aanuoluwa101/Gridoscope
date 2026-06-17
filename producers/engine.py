@@ -19,6 +19,7 @@ concurrency without 500 threads.
 
 import asyncio
 import logging
+import os
 import random
 import sys
 from datetime import datetime
@@ -206,15 +207,23 @@ def main():
     """
     from config import SimulationConfig, KafkaConfig
 
+    # Every value below falls back to the existing local dev settings when
+    # the env var isn't set, so `python producers/engine.py` with no
+    # environment behaves exactly as before. In ECS, the task definition
+    # sets these (see infra/modules/ecs_service).
+    random_seed_env = os.environ.get("RANDOM_SEED", "42")
+
     cfg = GridoscopeConfig(
         simulation=SimulationConfig(
-            total_meters=5,
-            speed_multiplier=100,    # ← change to 10.0 for fast dev runs
-            random_seed=42,         # ← set to an int for reproducible runs
+            total_meters=int(os.environ.get("TOTAL_METERS", "5")),
+            speed_multiplier=float(os.environ.get("SPEED_MULTIPLIER", "100")),
+            random_seed=int(random_seed_env) if random_seed_env else None,
             sim_start=datetime(2026, 6, 6, 17, 0, 0),
         ),
         kafka=KafkaConfig(
-            bootstrap_servers="localhost:9092",
+            bootstrap_servers=os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
+            security_protocol=os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT"),
+            aws_region=os.environ.get("AWS_REGION", "us-east-1"),
         ),
         scenarios=ScenarioConfig(scenarios=[]),
     )

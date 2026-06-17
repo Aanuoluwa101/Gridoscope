@@ -1,0 +1,9 @@
+# Producer container dependencies — deliberately separate from the root
+# requirements.txt, which also pulls in dbt-snowflake for the batch pipeline.
+# Keeping the producer image to just what engine.py needs keeps builds fast
+# and the image small.
+
+aiokafka==0.10.0
+python-snappy==0.7.3
+aws-msk-iam-sasl-signer-python==1.0.2
+boto3

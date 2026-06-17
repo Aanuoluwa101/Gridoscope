@@ -34,6 +34,15 @@ class KafkaConsumerConfig:
     readings_topic:    str = "meter.readings"
     alerts_topic:      str = "meter.alerts"
 
+    # "PLAINTEXT" for the local docker-compose broker.
+    # "SASL_SSL" for MSK with IAM auth — pairs with sasl_mechanism="OAUTHBEARER"
+    # in consumer.py, which only activates when this is set.
+    security_protocol: str = "PLAINTEXT"
+
+    # AWS region the MSK IAM token signer authenticates against.
+    # Only read when security_protocol="SASL_SSL".
+    aws_region: str = "us-east-1"
+
     # Consumer group IDs — each group tracks its own offsets independently.
     # Changing this value resets the group to consume from scratch.
     readings_group_id: str = "gridoscope-aggregation"

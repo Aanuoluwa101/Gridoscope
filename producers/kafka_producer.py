@@ -75,10 +75,21 @@ class GridoscopeProducer:
         Called once at simulation startup. The producer maintains a
         persistent connection to the broker — we don't reconnect per message.
         """
-        logger.info("[Producer] Connecting to Kafka at %s", self.cfg.bootstrap_servers)
+        logger.info("[Producer] Connecting to Kafka at %s (%s)",
+                    self.cfg.bootstrap_servers, self.cfg.security_protocol)
+
+        auth_kwargs = {}
+        if self.cfg.security_protocol == "SASL_SSL":
+            from msk_iam_auth import MSKIAMTokenProvider
+            auth_kwargs = dict(
+                security_protocol="SASL_SSL",
+                sasl_mechanism="OAUTHBEARER",
+                sasl_oauth_token_provider=MSKIAMTokenProvider(region=self.cfg.aws_region),
+            )
 
         self._producer = AIOKafkaProducer(
             bootstrap_servers=self.cfg.bootstrap_servers,
+            **auth_kwargs,
             # How long to buffer messages before sending a batch.
             # linger_ms > 0 means we wait a little to build up a batch,
             # which is more efficient than sending one message at a time.

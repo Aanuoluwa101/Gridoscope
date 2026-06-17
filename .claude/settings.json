@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "deny": [
+      ".env",
+      "secrets/**",
+      "airflow/.env",
+      "gridoscope_dbt/.user.yml",
+      "infra/snowflake_tf_key.p8",
+      "infra/snowflake_tf_key.pub",
+      "infra/terraform.tfstate",
+      "infra/terraform.tfstate.backup",
+      "infra/dev.tfvars",
+      "infra/terraform.lock.hcl",
+      "profiles.yml",
+      "airflow/profiles.yml"
+    ]
+  }
+}

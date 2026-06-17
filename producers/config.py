@@ -26,6 +26,15 @@ class KafkaConfig:
 
     bootstrap_servers: str = "localhost:9092"
 
+    # "PLAINTEXT" for the local docker-compose broker.
+    # "SASL_SSL" for MSK with IAM auth — pairs with sasl_mechanism="OAUTHBEARER"
+    # in kafka_producer.py, which only activates when this is set.
+    security_protocol: str = "PLAINTEXT"
+
+    # AWS region the MSK IAM token signer authenticates against.
+    # Only read when security_protocol="SASL_SSL".
+    aws_region: str = "us-east-1"
+
     # The topic that receives all scheduled meter readings.
     # Partitioned by zone_id so consumers can own a full zone.
     readings_topic: str = "meter.readings"

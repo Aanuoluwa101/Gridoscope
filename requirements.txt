@@ -17,3 +17,9 @@ python-snappy==0.7.3
 
 aiohttp
 dbt-snowflake
+
+# MSK IAM authentication — generates short-lived SASL/OAUTHBEARER tokens
+# from the ECS task's IAM role. Only exercised when KAFKA_SECURITY_PROTOCOL=SASL_SSL;
+# local dev against docker-compose stays on PLAINTEXT and never touches this.
+aws-msk-iam-sasl-signer-python==1.0.2
+boto3
