@@ -146,7 +146,7 @@ module "producer_service" {
   source                = "./modules/ecs_service"
   environment           = var.environment
   service_name          = "producer"
-  image_uri             = "${module.ecr.producer_repository_url}:${var.producer_image_tag}"
+  image_uri             = "${module.ecr.repository_url}:producer-${var.producer_image_tag}"
   command               = ["python", "producers/engine.py"]
   cpu                   = var.producer_cpu
   memory                = var.producer_memory
@@ -171,7 +171,7 @@ module "consumer_service" {
   source                = "./modules/ecs_service"
   environment           = var.environment
   service_name          = "consumer"
-  image_uri             = "${module.ecr.consumer_repository_url}:${var.consumer_image_tag}"
+  image_uri             = "${module.ecr.repository_url}:consumer-${var.consumer_image_tag}"
   command               = ["python", "consumers/runner.py"]
   cpu                   = var.consumer_cpu
   memory                = var.consumer_memory

@@ -13,14 +13,9 @@ output "ecs_cluster_name" {
   value       = module.ecs_cluster.cluster_name
 }
 
-output "producer_repository_url" {
-  description = "ECR repository URL to push producer images to"
-  value       = module.ecr.producer_repository_url
-}
-
-output "consumer_repository_url" {
-  description = "ECR repository URL to push consumer images to"
-  value       = module.ecr.consumer_repository_url
+output "ecr_repository_url" {
+  description = "ECR repository URL — push as producer-<tag> and consumer-<tag>"
+  value       = module.ecr.repository_url
 }
 
 output "msk_connect_connector_arn" {

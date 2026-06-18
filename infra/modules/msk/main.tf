@@ -31,6 +31,11 @@ resource "aws_security_group" "msk" {
   }
 }
 
+resource "aws_cloudwatch_log_group" "msk" {
+  name              = "/gridoscope/${var.environment}/msk"
+  retention_in_days = 7
+}
+
 resource "aws_msk_cluster" "this" {
   cluster_name           = "gridoscope-${var.environment}"
   kafka_version          = var.kafka_version
@@ -60,6 +65,15 @@ resource "aws_msk_cluster" "this" {
   client_authentication {
     sasl {
       iam = true
+    }
+  }
+
+  logging_info {
+    broker_logs {
+      cloudwatch_logs {
+        enabled   = true
+        log_group = aws_cloudwatch_log_group.msk.name
+      }
     }
   }
 

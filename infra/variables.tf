@@ -101,7 +101,7 @@ variable "msk_connect_kafkaconnect_version" {
 # ---------------------------------------------------------------------------
 
 variable "producer_image_tag" {
-  description = "Image tag to deploy for the producer service"
+  description = "Tag suffix for the producer image — resolved as producer-<tag> against the shared ECR repo"
   type        = string
   default     = "latest"
 }
@@ -142,7 +142,7 @@ variable "random_seed" {
 # ---------------------------------------------------------------------------
 
 variable "consumer_image_tag" {
-  description = "Image tag to deploy for the consumer service"
+  description = "Tag suffix for the consumer image — resolved as consumer-<tag> against the shared ECR repo"
   type        = string
   default     = "latest"
 }

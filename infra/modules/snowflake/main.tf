@@ -1,11 +1,17 @@
 terraform {
   required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
+    }
     snowflake = {
       source  = "snowflakedb/snowflake"
       version = "~> 1.0"
     }
   }
 }
+
+data "aws_caller_identity" "current" {}
 
 
 # created first with hardcoded role arn
@@ -15,7 +21,7 @@ resource "snowflake_storage_integration" "s3_int" {
   enabled                   = true
   storage_provider          = "S3"
   storage_allowed_locations = ["s3://${var.bucket_name}/"]
-  storage_aws_role_arn      = "arn:aws:iam::733024282612:role/${var.iam_role_name}"
+  storage_aws_role_arn      = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.iam_role_name}"
 }
 
 

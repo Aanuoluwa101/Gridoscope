@@ -25,7 +25,8 @@ resource "aws_internet_gateway" "this" {
   }
 }
 
-# Public subnets only host the NAT Gateway — MSK and ECS tasks never get a public IP.
+# Public subnets kept for potential future use (bastion, ALB).
+# No NAT Gateway — ECS tasks reach AWS services via interface endpoints instead.
 resource "aws_subnet" "public" {
   count                   = length(var.azs)
   vpc_id                  = aws_vpc.this.id
@@ -49,27 +50,6 @@ resource "aws_subnet" "private" {
   }
 }
 
-# Single NAT Gateway — egress-only path for ECS tasks (ECR pulls, CloudWatch Logs).
-# Not in the HA path for this project (MSK and ECS are multi-AZ; this just provides
-# internet egress), so one NAT instead of one-per-AZ is the right tradeoff here.
-resource "aws_eip" "nat" {
-  domain = "vpc"
-
-  tags = {
-    Name = "gridoscope-${var.environment}-nat-eip"
-  }
-}
-
-resource "aws_nat_gateway" "this" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
-  depends_on    = [aws_internet_gateway.this]
-
-  tags = {
-    Name = "gridoscope-${var.environment}-nat"
-  }
-}
-
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.this.id
 
@@ -89,13 +69,9 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
+# Private route table has no default route — all egress goes through endpoints.
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.this.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.this.id
-  }
 
   tags = {
     Name = "gridoscope-${var.environment}-private-rt"
@@ -108,8 +84,40 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private.id
 }
 
-# Gateway endpoint for S3 — keeps Kafka Connect's eventual S3 writes (and any other
-# S3 traffic from the private subnets) off the NAT Gateway entirely, at no extra cost.
+# ---------------------------------------------------------------------------
+# VPC Endpoints — replace NAT Gateway for AWS service traffic
+# ---------------------------------------------------------------------------
+
+# Shared security group for all interface endpoints.
+# Allows HTTPS from anything inside the VPC (ECS tasks, MSK Connect workers).
+resource "aws_security_group" "vpc_endpoints" {
+  name        = "gridoscope-${var.environment}-vpc-endpoints"
+  description = "Allow HTTPS from VPC to AWS service interface endpoints"
+  vpc_id      = aws_vpc.this.id
+
+  ingress {
+    description = "HTTPS from VPC"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "All outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "gridoscope-${var.environment}-vpc-endpoints"
+  }
+}
+
+# S3 — Gateway endpoint (free, no security group needed).
+# Routes S3 traffic from private subnets directly to S3 without leaving AWS.
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.this.id
   service_name      = "com.amazonaws.${var.aws_region}.s3"
@@ -118,5 +126,76 @@ resource "aws_vpc_endpoint" "s3" {
 
   tags = {
     Name = "gridoscope-${var.environment}-s3-endpoint"
+  }
+}
+
+# ECR API — resolves image manifest requests (docker pull metadata).
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id              = aws_vpc.this.id
+  service_name        = "com.amazonaws.${var.aws_region}.ecr.api"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name = "gridoscope-${var.environment}-ecr-api-endpoint"
+  }
+}
+
+# ECR DKR — resolves actual layer blob downloads (the bulk of an image pull).
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id              = aws_vpc.this.id
+  service_name        = "com.amazonaws.${var.aws_region}.ecr.dkr"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name = "gridoscope-${var.environment}-ecr-dkr-endpoint"
+  }
+}
+
+# CloudWatch Logs — producer/consumer task logs go here.
+resource "aws_vpc_endpoint" "logs" {
+  vpc_id              = aws_vpc.this.id
+  service_name        = "com.amazonaws.${var.aws_region}.logs"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name = "gridoscope-${var.environment}-logs-endpoint"
+  }
+}
+
+# STS — issues temporary credentials when ECS tasks assume their IAM task role
+# and when the MSK IAM token provider calls generate_auth_token().
+resource "aws_vpc_endpoint" "sts" {
+  vpc_id              = aws_vpc.this.id
+  service_name        = "com.amazonaws.${var.aws_region}.sts"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name = "gridoscope-${var.environment}-sts-endpoint"
+  }
+}
+
+# SSM — consumer task reads the Power BI push URL (SecureString) at startup.
+resource "aws_vpc_endpoint" "ssm" {
+  vpc_id              = aws_vpc.this.id
+  service_name        = "com.amazonaws.${var.aws_region}.ssm"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name = "gridoscope-${var.environment}-ssm-endpoint"
   }
 }

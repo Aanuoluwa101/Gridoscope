@@ -9,6 +9,6 @@ output "private_subnet_ids" {
 }
 
 output "public_subnet_ids" {
-  description = "Public subnet IDs — used only by the NAT Gateway"
+  description = "Public subnet IDs — kept for future use (bastion, ALB)"
   value       = aws_subnet.public[*].id
 }
