@@ -261,78 +261,78 @@ services:
   #     Manually reset a consumer group offset during testing — useful when
   #     you want to replay events from the beginning without restarting Kafka.
   # ---------------------------------------------------------------------------
-  kafka-ui:
-    image: redpandadata/console:v2.4.3
-    container_name: gridoscope-kafka-ui
-    restart: unless-stopped
+  # kafka-ui:
+  #   image: redpandadata/console:v2.4.3
+  #   container_name: gridoscope-kafka-ui
+  #   restart: unless-stopped
 
-    depends_on:
-      kafka-broker:
-        condition: service_healthy
-      # schema-registry:
-      #   condition: service_healthy
+  #   depends_on:
+  #     kafka-broker:
+  #       condition: service_healthy
+  #     # schema-registry:
+  #     #   condition: service_healthy
 
-    ports:
-      - "8080:8080"
+  #   ports:
+  #     - "8080:8080"
 
-    networks:
-      - gridoscope-net
+  #   networks:
+  #     - gridoscope-net
 
-    environment:
-      KAFKA_BROKERS: "kafka-broker:29092"
-      # KAFKA_SCHEMAREGISTRY_ENABLED: "true"
-      # KAFKA_SCHEMAREGISTRY_URLS: "http://schema-registry:8081"
-      REDPANDA_ADMINAPI_ENABLED: "false"
-      SERVER_LISTENPORT: 8080
+  #   environment:
+  #     KAFKA_BROKERS: "kafka-broker:29092"
+  #     # KAFKA_SCHEMAREGISTRY_ENABLED: "true"
+  #     # KAFKA_SCHEMAREGISTRY_URLS: "http://schema-registry:8081"
+  #     REDPANDA_ADMINAPI_ENABLED: "false"
+  #     SERVER_LISTENPORT: 8080
 
   
-  kafka-connect:
-    image: confluentinc/cp-kafka-connect:7.6.0
-    container_name: gridoscope-connect
-    restart: unless-stopped
-    depends_on:
-      kafka-broker:
-        condition: service_healthy
-    ports:
-      - "8083:8083"
-    networks:
-      - gridoscope-net
-    environment:
-      # Connect to your Kafka broker
-      CONNECT_BOOTSTRAP_SERVERS: "kafka-broker:29092"
+  # kafka-connect:
+  #   image: confluentinc/cp-kafka-connect:7.6.0
+  #   container_name: gridoscope-connect
+  #   restart: unless-stopped
+  #   depends_on:
+  #     kafka-broker:
+  #       condition: service_healthy
+  #   ports:
+  #     - "8083:8083"
+  #   networks:
+  #     - gridoscope-net
+  #   environment:
+  #     # Connect to your Kafka broker
+  #     CONNECT_BOOTSTRAP_SERVERS: "kafka-broker:29092"
 
-      # Unique ID for this Connect cluster
-      CONNECT_REST_ADVERTISED_HOST_NAME: "kafka-connect"
-      CONNECT_REST_PORT: 8083
+  #     # Unique ID for this Connect cluster
+  #     CONNECT_REST_ADVERTISED_HOST_NAME: "kafka-connect"
+  #     CONNECT_REST_PORT: 8083
 
-      # Internal topics Kafka Connect uses to store
-      # connector configs, offsets, and status
-      CONNECT_GROUP_ID: "gridoscope-connect-group"
-      CONNECT_CONFIG_STORAGE_TOPIC: "connect-configs"
-      CONNECT_OFFSET_STORAGE_TOPIC: "connect-offsets"
-      CONNECT_STATUS_STORAGE_TOPIC: "connect-status"
+  #     # Internal topics Kafka Connect uses to store
+  #     # connector configs, offsets, and status
+  #     CONNECT_GROUP_ID: "gridoscope-connect-group"
+  #     CONNECT_CONFIG_STORAGE_TOPIC: "connect-configs"
+  #     CONNECT_OFFSET_STORAGE_TOPIC: "connect-offsets"
+  #     CONNECT_STATUS_STORAGE_TOPIC: "connect-status"
 
-      # Replication factor 1 for dev
-      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
-      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
-      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+  #     # Replication factor 1 for dev
+  #     CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+  #     CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+  #     CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
 
-      # Serialisation — use JSON for Connect internals
-      CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.storage.StringConverter"
-      CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.converters.ByteArrayConverter"
+  #     # Serialisation — use JSON for Connect internals
+  #     CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.storage.StringConverter"
+  #     CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.converters.ByteArrayConverter"
 
-      # AWS credentials for S3 access
-      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
-      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
-      AWS_DEFAULT_REGION: "${AWS_REGION}"
+  #     # AWS credentials for S3 access
+  #     AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+  #     AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+  #     AWS_DEFAULT_REGION: "${AWS_REGION}"
 
-      # Install the S3 Sink Connector plugin at startup
-      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+  #     # Install the S3 Sink Connector plugin at startup
+  #     CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
 
-    # Install S3 connector plugin when container starts
-    command:
-      - bash
-      - -c
-      - |
-        confluent-hub install --no-prompt confluentinc/kafka-connect-s3:latest
-        /etc/confluent/docker/run
+  #   # Install S3 connector plugin when container starts
+  #   command:
+  #     - bash
+  #     - -c
+  #     - |
+  #       confluent-hub install --no-prompt confluentinc/kafka-connect-s3:latest
+  #       /etc/confluent/docker/run

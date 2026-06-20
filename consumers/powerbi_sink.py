@@ -86,6 +86,8 @@ class PowerBISink:
         self._session: Optional[aiohttp.ClientSession] = None
         self._push_count  = 0
         self._error_count = 0
+        self._lock        = asyncio.Lock()
+        self._last_push   = 0.0
 
     async def __aenter__(self):
         if self.cfg.enabled:
@@ -122,6 +124,12 @@ class PowerBISink:
 
         payload = [self._to_powerbi_row(aggregate)]
 
+        async with self._lock:
+            gap = self.cfg.min_push_interval_seconds - (asyncio.get_event_loop().time() - self._last_push)
+            if gap > 0:
+                await asyncio.sleep(gap)
+            self._last_push = asyncio.get_event_loop().time()
+
         try:
             async with self._session.post(
                 self.cfg.push_url,
@@ -142,7 +150,7 @@ class PowerBISink:
                         aggregate.zone_id, response.status, body[:200]
                     )
 
-        except aiohttp.ClientError as exc:
+        except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
             self._error_count += 1
             logger.warning("[PowerBI] HTTP error for %s: %s", aggregate.zone_id, exc)
 

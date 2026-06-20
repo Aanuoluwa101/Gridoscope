@@ -16,3 +16,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY producers/ producers/
 
 CMD ["python", "producers/engine.py"]
+# CMD ["python", "producers/dry_run.py --meters 5 --speed 10"]

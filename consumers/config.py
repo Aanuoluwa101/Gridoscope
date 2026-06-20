@@ -6,6 +6,7 @@ independently — in production the consumers often run on different
 machines or containers from the producer.
 """
 
+import os
 from dataclasses import dataclass, field
 
 
@@ -17,11 +18,11 @@ from dataclasses import dataclass, field
 # ---------------------------------------------------------------------------
 
 ZONE_PARTITION: dict[str, int] = {
-    "ZONE-NORTH":   0,
-    "ZONE-SOUTH":   1,
-    "ZONE-EAST":    2,
-    "ZONE-WEST":    3,
-    "ZONE-CENTRAL": 4,
+    "ZONE-NORTH":   int(os.environ.get("ZONE_NORTH_PARTITION",   "0")),
+    "ZONE-SOUTH":   int(os.environ.get("ZONE_SOUTH_PARTITION",   "1")),
+    "ZONE-EAST":    int(os.environ.get("ZONE_EAST_PARTITION",    "2")),
+    "ZONE-WEST":    int(os.environ.get("ZONE_WEST_PARTITION",    "3")),
+    "ZONE-CENTRAL": int(os.environ.get("ZONE_CENTRAL_PARTITION", "4")),
 }
 
 # Reverse map — useful for logging: given a partition number, what zone is it?
@@ -139,6 +140,12 @@ class PowerBIConfig:
 
     # Timeout in seconds for each HTTP push request.
     request_timeout_seconds: int = 5
+
+    # Minimum seconds between consecutive pushes across all zones.
+    # Power BI streaming datasets allow ~75-120 requests/minute.
+    # With 5 zones closing windows simultaneously, set this to
+    # at least 5/75 ≈ 0.4s to stay safely under the limit.
+    min_push_interval_seconds: float = 0.5
 
 
 @dataclass

@@ -54,7 +54,7 @@ resource "aws_iam_role_policy_attachment" "execution_managed" {
 # a module dependency cycle.
 resource "aws_security_group" "ecs_tasks" {
   name        = "gridoscope-${var.environment}-ecs-tasks"
-  description = "Gridoscope ECS Fargate tasks (producer, consumer) — egress only"
+  description = "Gridoscope ECS Fargate tasks (producer, consumer) - egress only"
   vpc_id      = var.vpc_id
 
   egress {

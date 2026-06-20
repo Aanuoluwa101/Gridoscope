@@ -69,9 +69,34 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# Private route table has no default route — all egress goes through endpoints.
+resource "aws_eip" "nat" {
+  domain = "vpc"
+
+  tags = {
+    Name = "gridoscope-${var.environment}-nat-eip"
+  }
+}
+
+# Single NAT Gateway in the first public subnet — one is enough for a personal
+# project. HA would require one per AZ (~3× the cost).
+resource "aws_nat_gateway" "this" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public[0].id
+
+  tags = {
+    Name = "gridoscope-${var.environment}-nat"
+  }
+
+  depends_on = [aws_internet_gateway.this]
+}
+
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.this.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.this.id
+  }
 
   tags = {
     Name = "gridoscope-${var.environment}-private-rt"
@@ -85,7 +110,7 @@ resource "aws_route_table_association" "private" {
 }
 
 # ---------------------------------------------------------------------------
-# VPC Endpoints — replace NAT Gateway for AWS service traffic
+# VPC Endpoints — AWS service traffic stays within AWS (cheaper than NAT)
 # ---------------------------------------------------------------------------
 
 # Shared security group for all interface endpoints.

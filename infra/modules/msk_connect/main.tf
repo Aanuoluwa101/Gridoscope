@@ -21,7 +21,7 @@ locals {
 # is wired from the root module alongside the equivalent ECS tasks rule.
 resource "aws_security_group" "connect" {
   name        = "${local.name_prefix}-connect"
-  description = "Gridoscope MSK Connect workers — egress only"
+  description = "Gridoscope MSK Connect workers - egress only"
   vpc_id      = var.vpc_id
 
   egress {
@@ -189,6 +189,7 @@ resource "aws_mskconnect_connector" "s3_sink" {
     "flush.size"            = "10"
     "rotate.interval.ms"    = "30000"
     "partitioner.class"     = "io.confluent.connect.storage.partitioner.TimeBasedPartitioner"
+    "timestamp.extractor"   = "Record"
     "path.format"           = "'year'=YYYY/'month'=MM/'day'=dd/'hour'=HH"
     "partition.duration.ms" = "3600000"
     "topics.dir"            = "raw"

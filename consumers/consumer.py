@@ -94,11 +94,13 @@ class ZoneConsumer:
 
         auth_kwargs = {}
         if self.cfg.kafka.security_protocol == "SASL_SSL":
+            import ssl
             from msk_iam_auth import MSKIAMTokenProvider
             auth_kwargs = dict(
                 security_protocol="SASL_SSL",
                 sasl_mechanism="OAUTHBEARER",
                 sasl_oauth_token_provider=MSKIAMTokenProvider(region=self.cfg.kafka.aws_region),
+                ssl_context=ssl.create_default_context(),
             )
 
         self._consumer = AIOKafkaConsumer(
@@ -154,7 +156,13 @@ class ZoneConsumer:
                 "[Consumer][%s] Flushing partial window on shutdown (%d readings)",
                 self.zone_id, self._messages_processed
             )
-            await self.sink.push(final_aggregate)
+            try:
+                await self.sink.push(final_aggregate)
+            except Exception as exc:
+                logger.warning(
+                    "[Consumer][%s] Could not push final window on shutdown: %s",
+                    self.zone_id, exc
+                )
 
         if self._consumer:
             await self._consumer.stop()

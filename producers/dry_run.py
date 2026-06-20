@@ -1,5 +1,5 @@
 """
-dry_run.py — Run the GridPulse simulation without Kafka.
+dry_run.py — Run the Gridoscope simulation without Kafka.
 
 Validates the simulation engine — profiles, state machines, fault logic,
 scenarios — by printing everything to the terminal instead of sending to Kafka.
@@ -39,7 +39,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "producer"))
 
 from config import (
-    GridPulseConfig, KafkaConfig, SimulationConfig,
+    GridoscopeConfig, KafkaConfig, SimulationConfig,
     IntervalConfig, FaultConfig, ScenarioConfig,
 )
 from meter_profile import generate_meter_fleet, RESIDENTIAL, COMMERCIAL, INDUSTRIAL
@@ -105,7 +105,7 @@ def apply_demo_mode(
     demo: str,
     state_machines: list,
     meters_by_zone: dict,
-    cfg: GridPulseConfig,
+    cfg: GridoscopeConfig,
     rng: random.Random,
 ) -> None:
     """
@@ -129,7 +129,7 @@ def _apply_single_demo(
     demo: str,
     state_machines: list,
     meters_by_zone: dict,
-    cfg: GridPulseConfig,
+    cfg: GridoscopeConfig,
     rng: random.Random,
 ) -> None:
     """Apply one specific demo injection and print a description banner."""
@@ -301,14 +301,14 @@ def _print_affected(targets: list) -> None:
 # Fleet summary
 # ---------------------------------------------------------------------------
 
-def print_fleet_summary(fleet, cfg: GridPulseConfig, demo: str = None) -> None:
+def print_fleet_summary(fleet, cfg: GridoscopeConfig, demo: str = None) -> None:
     n_res = sum(1 for m in fleet if m.customer_type == RESIDENTIAL)
     n_com = sum(1 for m in fleet if m.customer_type == COMMERCIAL)
     n_ind = sum(1 for m in fleet if m.customer_type == INDUSTRIAL)
 
     print()
     print(coloured("=" * 65, C.BOLD, C.CYAN))
-    title = "  GridPulse — Dry Run Mode"
+    title = "  Gridoscope — Dry Run Mode"
     if demo:
         title += f"  {coloured(f'[DEMO: {demo.upper()}]', C.BOLD, C.ORANGE)}"
     print(coloured(title, C.BOLD, C.CYAN))
@@ -557,7 +557,7 @@ async def dry_run_meter(
 # Main orchestrator
 # ---------------------------------------------------------------------------
 
-async def run_dry_run(cfg: GridPulseConfig, verbose: bool, demo: str = None) -> None:
+async def run_dry_run(cfg: GridoscopeConfig, verbose: bool, demo: str = None) -> None:
 
     fleet = generate_meter_fleet(cfg)
     print_fleet_summary(fleet, cfg, demo=demo)
@@ -626,7 +626,7 @@ async def run_dry_run(cfg: GridPulseConfig, verbose: bool, demo: str = None) -> 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="GridPulse dry run — simulate meters without Kafka",
+        description="Gridoscope dry run — simulate meters without Kafka",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -676,7 +676,7 @@ if __name__ == "__main__":
         print_demo_menu()
         sys.exit(1)
 
-    cfg = GridPulseConfig(
+    cfg = GridoscopeConfig(
         simulation=SimulationConfig(
             total_meters=args.meters,
             speed_multiplier=args.speed,

@@ -20,11 +20,13 @@ Why aiokafka?
 
 import asyncio
 import logging
+import os
 import time
 from typing import Optional
 
 from aiokafka import AIOKafkaProducer
-from aiokafka.errors import KafkaError
+from aiokafka.admin import AIOKafkaAdminClient, NewTopic
+from aiokafka.errors import KafkaError, TopicAlreadyExistsError
 
 from meter_profile import MeterProfile
 from meter_state_machine import MeterEvent
@@ -34,11 +36,11 @@ logger = logging.getLogger(__name__)
 
 
 ZONE_PARTITION = {
-    "ZONE-NORTH":   0,
-    "ZONE-SOUTH":   1,
-    "ZONE-EAST":    2,
-    "ZONE-WEST":    3,
-    "ZONE-CENTRAL": 4,
+    "ZONE-NORTH":   int(os.environ.get("ZONE_NORTH_PARTITION",   "0")),
+    "ZONE-SOUTH":   int(os.environ.get("ZONE_SOUTH_PARTITION",   "1")),
+    "ZONE-EAST":    int(os.environ.get("ZONE_EAST_PARTITION",    "2")),
+    "ZONE-WEST":    int(os.environ.get("ZONE_WEST_PARTITION",    "3")),
+    "ZONE-CENTRAL": int(os.environ.get("ZONE_CENTRAL_PARTITION", "4")),
 }
 
 class GridoscopeProducer:
@@ -68,6 +70,27 @@ class GridoscopeProducer:
     async def __aexit__(self, *args):
         await self.stop()
 
+    async def _ensure_topics(self, auth_kwargs: dict) -> None:
+        replication_factor = int(os.environ.get("KAFKA_TOPIC_REPLICATION_FACTOR", "3"))
+        topics = [
+            NewTopic(name=self.cfg.readings_topic, num_partitions=5, replication_factor=replication_factor),
+            NewTopic(name=self.cfg.alerts_topic,   num_partitions=1, replication_factor=replication_factor),
+        ]
+        admin = AIOKafkaAdminClient(
+            bootstrap_servers=self.cfg.bootstrap_servers, **auth_kwargs
+        )
+        await admin.start()
+        try:
+            await admin.create_topics(topics)
+            logger.info("[Producer] Topics created: %s, %s",
+                        self.cfg.readings_topic, self.cfg.alerts_topic)
+        except TopicAlreadyExistsError:
+            logger.info("[Producer] Topics already exist, skipping creation.")
+        except Exception as e:
+            logger.warning("[Producer] Topic creation skipped (%s) — relying on broker auto-create.", e)
+        finally:
+            await admin.close()
+
     async def start(self) -> None:
         """
         Create and start the Kafka producer connection.
@@ -80,12 +103,16 @@ class GridoscopeProducer:
 
         auth_kwargs = {}
         if self.cfg.security_protocol == "SASL_SSL":
+            import ssl
             from msk_iam_auth import MSKIAMTokenProvider
             auth_kwargs = dict(
                 security_protocol="SASL_SSL",
                 sasl_mechanism="OAUTHBEARER",
                 sasl_oauth_token_provider=MSKIAMTokenProvider(region=self.cfg.aws_region),
+                ssl_context=ssl.create_default_context(),
             )
+
+        await self._ensure_topics(auth_kwargs)
 
         self._producer = AIOKafkaProducer(
             bootstrap_servers=self.cfg.bootstrap_servers,

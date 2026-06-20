@@ -17,6 +17,9 @@ infra/override.tf.json
 infra/*_override.tf
 infra/*_override.tf.json
 infra/.terraform.lock.hcl
+infra/terraform.tfstate.d/prod/
+infra/terraform.tfstate.d/prod/terraform.tfstate
+infra/terraform.tfstate.d/prod/terraform.tfstate
 
 # OS
 .DS_Store
@@ -34,5 +37,6 @@ logs/
 s3-sink-dev-setup.sh
 
 notes.txt
+commands.txt
 profiles.yml
 gridoscope_dbt/.user.yml

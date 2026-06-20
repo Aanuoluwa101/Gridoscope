@@ -15,7 +15,7 @@ terraform {
 # sides are already visible.
 resource "aws_security_group" "msk" {
   name        = "gridoscope-${var.environment}-msk"
-  description = "Gridoscope MSK brokers — IAM-auth Kafka port, ingress wired from root"
+  description = "Gridoscope MSK brokers - IAM-auth Kafka port, ingress wired from root"
   vpc_id      = var.vpc_id
 
   egress {

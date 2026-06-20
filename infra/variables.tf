@@ -190,3 +190,38 @@ variable "powerbi_push_url" {
 }
 
 
+# ---------------------------------------------------------------------------
+# Zone → Kafka partition mapping
+# ---------------------------------------------------------------------------
+
+variable "zone_north_partition" {
+  description = "Kafka partition number for ZONE-NORTH — must match across producer and consumer"
+  type        = number
+  default     = 0
+}
+
+variable "zone_south_partition" {
+  description = "Kafka partition number for ZONE-SOUTH — must match across producer and consumer"
+  type        = number
+  default     = 1
+}
+
+variable "zone_east_partition" {
+  description = "Kafka partition number for ZONE-EAST — must match across producer and consumer"
+  type        = number
+  default     = 2
+}
+
+variable "zone_west_partition" {
+  description = "Kafka partition number for ZONE-WEST — must match across producer and consumer"
+  type        = number
+  default     = 3
+}
+
+variable "zone_central_partition" {
+  description = "Kafka partition number for ZONE-CENTRAL — must match across producer and consumer"
+  type        = number
+  default     = 4
+}
+
+

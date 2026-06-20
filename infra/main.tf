@@ -139,7 +139,7 @@ module "msk_connect" {
 resource "aws_ssm_parameter" "powerbi_push_url" {
   name  = "${local.ssm_path_prefix}/powerbi_push_url"
   type  = "SecureString"
-  value = var.powerbi_push_url != "" ? var.powerbi_push_url : "unset"
+  value = var.powerbi_push_url
 }
 
 module "producer_service" {
@@ -158,12 +158,18 @@ module "producer_service" {
   aws_region            = var.aws_region
   msk_cluster_arn       = module.msk.cluster_arn
   msk_bootstrap_brokers = module.msk.bootstrap_brokers_iam
-  kafka_topic_actions   = ["kafka-cluster:WriteData"]
+  kafka_topic_actions   = ["kafka-cluster:DescribeTopic", "kafka-cluster:CreateTopic", "kafka-cluster:WriteData"]
 
   environment_variables = {
-    TOTAL_METERS     = var.total_meters
-    SPEED_MULTIPLIER = var.speed_multiplier
-    RANDOM_SEED      = var.random_seed
+    TOTAL_METERS              = var.total_meters
+    SPEED_MULTIPLIER          = var.speed_multiplier
+    RANDOM_SEED               = var.random_seed
+    KAFKA_SECURITY_PROTOCOL   = "SASL_SSL"
+    ZONE_NORTH_PARTITION      = tostring(var.zone_north_partition)
+    ZONE_SOUTH_PARTITION      = tostring(var.zone_south_partition)
+    ZONE_EAST_PARTITION       = tostring(var.zone_east_partition)
+    ZONE_WEST_PARTITION       = tostring(var.zone_west_partition)
+    ZONE_CENTRAL_PARTITION    = tostring(var.zone_central_partition)
   }
 }
 
@@ -183,12 +189,18 @@ module "consumer_service" {
   aws_region            = var.aws_region
   msk_cluster_arn       = module.msk.cluster_arn
   msk_bootstrap_brokers = module.msk.bootstrap_brokers_iam
-  kafka_topic_actions   = ["kafka-cluster:ReadData"]
+  kafka_topic_actions   = ["kafka-cluster:DescribeTopic", "kafka-cluster:ReadData"]
   kafka_group_actions   = ["kafka-cluster:DescribeGroup", "kafka-cluster:AlterGroup"]
 
   environment_variables = {
-    SPEED_MULTIPLIER = var.speed_multiplier
-    POWERBI_ENABLED  = tostring(var.powerbi_enabled)
+    SPEED_MULTIPLIER          = var.speed_multiplier
+    POWERBI_ENABLED           = tostring(var.powerbi_enabled)
+    KAFKA_SECURITY_PROTOCOL   = "SASL_SSL"
+    ZONE_NORTH_PARTITION      = tostring(var.zone_north_partition)
+    ZONE_SOUTH_PARTITION      = tostring(var.zone_south_partition)
+    ZONE_EAST_PARTITION       = tostring(var.zone_east_partition)
+    ZONE_WEST_PARTITION       = tostring(var.zone_west_partition)
+    ZONE_CENTRAL_PARTITION    = tostring(var.zone_central_partition)
   }
 
   secrets = [
