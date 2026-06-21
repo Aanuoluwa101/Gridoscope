@@ -1,0 +1,5 @@
+# MWAA 2.10.x requirements — only packages not pre-installed by MWAA.
+# Keep this list minimal: every additional package extends environment
+# update time and risks version conflicts with MWAA's pre-installed set.
+apache-airflow-providers-snowflake>=5.3.1
+dbt-snowflake>=1.8.0

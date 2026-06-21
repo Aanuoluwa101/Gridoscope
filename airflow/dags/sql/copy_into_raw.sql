@@ -1,10 +1,10 @@
-COPY INTO SNOWFLAKE_LEARNING_DB.RAW.METER_EVENTS (src, load_ts)
+COPY INTO GRIDOSCOPE_PROD.RAW.METER_EVENTS (src, load_ts)
 FROM (
     SELECT
-        PARSE_JSON($1),        -- ← parses the string into a proper JSON object
+        PARSE_JSON($1),
         CURRENT_TIMESTAMP()
-    FROM @GRIDOSCOPE_STAGE_DEV
+    FROM @GRIDOSCOPE_PROD.RAW.GRIDOSCOPE_STAGE_PROD
 )
-PATTERN = '.*meter\.readings/year={{ logical_date.year }}/month={{ '%02d' | format(logical_date.month) }}/day={{ '%02d' | format(logical_date.day) }}/hour={{ '%02d' | format(logical_date.hour) }}/.*\.json'
+PATTERN = '.*meter\.readings/year={{ logical_date.strftime("%Y") }}/month={{ logical_date.strftime("%m") }}/day={{ logical_date.strftime("%d") }}/hour={{ logical_date.strftime("%H") }}/.*\.json'
 FILE_FORMAT = (TYPE = JSON, STRIP_OUTER_ARRAY = FALSE)
 ON_ERROR = 'CONTINUE';

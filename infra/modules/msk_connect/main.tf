@@ -1,3 +1,5 @@
+# msk_connect module main.tf 
+
 terraform {
   required_providers {
     aws = {
@@ -76,8 +78,14 @@ resource "aws_iam_role_policy" "connect_kafka" {
         Resource = [var.msk_cluster_arn]
       },
       {
-        Effect   = "Allow"
-        Action   = ["kafka-cluster:ReadData", "kafka-cluster:DescribeTopic"]
+        Effect = "Allow"
+        Action = [
+          "kafka-cluster:ReadData",
+          "kafka-cluster:WriteData",
+          "kafka-cluster:DescribeTopic",
+          "kafka-cluster:CreateTopic",
+          "kafka-cluster:AlterTopic",
+        ]
         Resource = [local.topic_arn_pattern]
       },
       {

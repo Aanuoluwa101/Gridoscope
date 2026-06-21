@@ -22,3 +22,8 @@ output "msk_connect_connector_arn" {
   description = "MSK Connect S3 sink connector ARN"
   value       = module.msk_connect.connector_arn
 }
+
+output "mwaa_webserver_url" {
+  description = "MWAA Airflow UI URL"
+  value       = module.mwaa.webserver_url
+}

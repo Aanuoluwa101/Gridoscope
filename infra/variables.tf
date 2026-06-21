@@ -225,3 +225,14 @@ variable "zone_central_partition" {
 }
 
 
+# ---------------------------------------------------------------------------
+# MWAA
+# ---------------------------------------------------------------------------
+
+variable "mwaa_snowflake_password" {
+  description = "Snowflake password for the MWAA Airflow connection and dbt env var — stored in Secrets Manager"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
