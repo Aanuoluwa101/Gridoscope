@@ -272,7 +272,7 @@ resource "aws_mwaa_environment" "this" {
     "secrets.backend_kwargs" = jsonencode({ connections_prefix = "airflow/connections", variables_prefix = "airflow/variables" })
     # Explicit parallelism cap — also serves as the change that forces MWAA to
     # do a full environment restart (and reinstall requirements.txt) on apply.
-    "core.parallelism"       = "32"
+    "core.parallelism"       = "16"
   }
 
   logging_configuration {
@@ -300,6 +300,7 @@ resource "aws_mwaa_environment" "this" {
 
   tags = {
     Name                = local.name
+    RequirementsUpdated = "2026-06-22-provider-only"
   }
 
   depends_on = [aws_iam_role_policy.mwaa]

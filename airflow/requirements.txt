@@ -3,4 +3,7 @@
 # dbt 1.8.x conflicts with MWAA's pre-pinned isodate==0.7.2 because
 # dbt-common>=1.0.0 requires isodate<0.7. dbt 1.7.x uses dbt-common 0.1.x
 # which does not constrain isodate, so we pin to <1.8.0.
-dbt-snowflake>=1.7.0,<1.8.0
+# dbt-snowflake cannot be installed here: dbt-core 1.7.x requires pathspec<0.12
+# but MWAA 2.10.3 pins pathspec==0.12.1; dbt-core 1.8.x hits isodate==0.7.2.
+# dbt is installed at task execution time into an isolated venv in _run_dbt().
+apache-airflow-providers-snowflake

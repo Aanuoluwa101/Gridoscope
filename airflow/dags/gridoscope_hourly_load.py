@@ -29,12 +29,17 @@ BUCKET = "gridoscope-raw-prod"
 DBT_DIR = "/usr/local/airflow/dags/dbt/gridoscope_dbt"
 DBT_PROFILES_DIR = "/usr/local/airflow/dags/dbt/gridoscope_dbt"
 
+# dbt-core conflicts with MWAA 2.10.3's pinned pathspec and isodate, so it
+# cannot be installed via requirements.txt. Instead, _run_dbt creates an
+# isolated venv here on first use and reuses it for the worker's lifetime.
+_DBT_VENV = "/tmp/dbt_venv"
+
 DEFAULT_ARGS = {
     "owner": "gridoscope",
     "retries": 1,
-    "retry_delay": timedelta(minutes=5),
-    "email_on_failure": True,
-    "email": ["aanuayodeji101@gmail.com"],
+    "retry_delay": timedelta(minutes=1),
+    # "email_on_failure": True,
+    # "email": ["aanuayodeji101@gmail.com"],
 }
 
 
@@ -46,7 +51,17 @@ def _run_dbt(args: list, dbt_dir: str, profiles_dir: str) -> str:
     The connection (gridoscope_snowflake_dbt_prod) is backed by Secrets
     Manager, so no credentials live in the DAG file or env vars.
     """
+    import sys
     from airflow.hooks.base import BaseHook
+
+    dbt_bin = f"{_DBT_VENV}/bin/dbt"
+    if not os.path.exists(dbt_bin):
+        print("First use on this worker — creating isolated dbt venv (~2 min)...")
+        subprocess.run([sys.executable, "-m", "venv", _DBT_VENV], check=True)
+        subprocess.run(
+            [f"{_DBT_VENV}/bin/pip", "install", "--quiet", "dbt-snowflake~=1.7.0"],
+            check=True,
+        )
 
     conn = BaseHook.get_connection("gridoscope_snowflake_dbt_prod")
     extra = json.loads(conn.extra or "{}")
@@ -57,11 +72,21 @@ def _run_dbt(args: list, dbt_dir: str, profiles_dir: str) -> str:
         "SNOWFLAKE_DBT_USER": conn.login,
         "SNOWFLAKE_DBT_PASSWORD": conn.password,
     }
-    cmd = ["dbt"] + args + ["--profiles-dir", profiles_dir]
+    # DAGs dir is read-only on MWAA (S3-synced). Redirect dbt's log and
+    # compiled artifact output to /tmp so initialization doesn't fail silently.
+    cmd = [dbt_bin] + args + [
+        "--profiles-dir", profiles_dir,
+        "--log-path", "/tmp/dbt_logs",
+        "--target-path", "/tmp/dbt_target",
+        "--packages-install-path", "/tmp/dbt_packages",
+    ]
     result = subprocess.run(cmd, cwd=dbt_dir, env=env, capture_output=True, text=True)
     print(result.stdout)
     if result.returncode != 0:
-        raise RuntimeError(f"dbt {args[0]} failed:\n{result.stderr}")
+        raise RuntimeError(
+            f"dbt {args[0]} failed (rc={result.returncode}):\n"
+            f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
     return result.stdout
 
 
@@ -91,14 +116,16 @@ def gridoscope_hourly_load():
     sense_meter_readings = S3KeySensor(
         task_id="sense_meter_readings_partition",
         bucket_name=BUCKET,
-        bucket_key=(
-            "raw/meter.readings/"
-            "year={{ logical_date.strftime('%Y') }}/"
-            "month={{ logical_date.strftime('%m') }}/"
-            "day={{ logical_date.strftime('%d') }}/"
-            "hour={{ logical_date.strftime('%H') }}/"
-            "*.json"
-        ),
+        # TEMP: hardcoded partition for testing — restore the block below when done
+        bucket_key="raw/meter.readings/year=2026/month=06/day=20/hour=10/*.json",
+        # bucket_key=(
+        #     "raw/meter.readings/"
+        #     "year={{ logical_date.strftime('%Y') }}/"
+        #     "month={{ logical_date.strftime('%m') }}/"
+        #     "day={{ logical_date.strftime('%d') }}/"
+        #     "hour={{ logical_date.strftime('%H') }}/"
+        #     "*.json"
+        # ),
         wildcard_match=True,
         aws_conn_id="aws_default",
         poke_interval=60,

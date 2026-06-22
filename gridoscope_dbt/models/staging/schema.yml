@@ -26,5 +26,4 @@ models:
       - name: meter_state
         tests:
           - accepted_values:
-              arguments:
-                values: ['normal', 'degraded', 'fault', 'silent']
+              values: ['normal', 'degraded', 'fault', 'silent']
