@@ -149,16 +149,19 @@ resource "aws_ssm_parameter" "powerbi_push_url" {
 # ---------------------------------------------------------------------------
 
 module "mwaa" {
-  source                = "./modules/mwaa"
-  environment           = var.environment
-  vpc_id                = module.networking.vpc_id
-  private_subnet_ids    = module.networking.private_subnet_ids
-  bucket_arn            = module.storage.bucket_arn
-  snowflake_organization = var.snowflake_organization
-  snowflake_account     = var.snowflake_account
-  snowflake_user        = var.snowflake_username
-  snowflake_password    = var.mwaa_snowflake_password
-  snowflake_database    = var.snowflake_database
+  source                     = "./modules/mwaa"
+  environment                = var.environment
+  aws_region                 = var.aws_region
+  vpc_id                     = module.networking.vpc_id
+  private_subnet_ids         = module.networking.private_subnet_ids
+  bucket_arn                 = module.storage.bucket_arn
+  snowflake_organization     = var.snowflake_organization
+  snowflake_account          = var.snowflake_account
+  snowflake_airflow_user     = var.mwaa_snowflake_airflow_user
+  snowflake_airflow_password = var.mwaa_snowflake_airflow_password
+  snowflake_dbt_user         = var.mwaa_snowflake_dbt_user
+  snowflake_dbt_password     = var.mwaa_snowflake_dbt_password
+  snowflake_database         = var.snowflake_database
 }
 
 module "producer_service" {

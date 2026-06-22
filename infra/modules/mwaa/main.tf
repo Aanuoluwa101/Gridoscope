@@ -10,7 +10,6 @@ terraform {
 }
 
 data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
 
 locals {
   name = "gridoscope-${var.environment}"
@@ -78,7 +77,7 @@ resource "aws_iam_role_policy" "mwaa" {
         # Required for MWAA to publish environment health metrics.
         Effect   = "Allow"
         Action   = "airflow:PublishMetrics"
-        Resource = "arn:aws:airflow:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:environment/${local.name}"
+        Resource = "arn:aws:airflow:${var.aws_region}:${data.aws_caller_identity.current.account_id}:environment/${local.name}"
       },
       {
         # Required for MWAA to verify bucket public-access settings before
@@ -94,8 +93,10 @@ resource "aws_iam_role_policy" "mwaa" {
         Resource = [var.bucket_arn, "${var.bucket_arn}/*"]
       },
       {
-        # Broad log permissions — MWAA creates log groups with the prefix
-        # "airflow-{environment-name}".
+        # Log group and stream operations — scoped to MWAA's log groups.
+        # MWAA names log groups: airflow-{environment-name}-{component}.
+        # DescribeLogStreams/GetLogGroupFields are called by MWAA's logging
+        # handler to fetch the upload sequence token before writing events.
         Effect = "Allow"
         Action = [
           "logs:CreateLogGroup",
@@ -103,17 +104,29 @@ resource "aws_iam_role_policy" "mwaa" {
           "logs:PutLogEvents",
           "logs:GetLogEvents",
           "logs:GetLogRecord",
+          "logs:GetLogGroupFields",
           "logs:DescribeLogGroups",
-          "logs:GetLogDelivery",
-          "logs:ListLogDeliveries",
-          "logs:UpdateLogDelivery",
-          "logs:CreateLogDelivery",
+          "logs:DescribeLogStreams",
           "logs:PutRetentionPolicy",
         ]
         Resource = [
-          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:airflow-${local.name}-*",
-          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:airflow-${local.name}-*:log-stream:*",
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:airflow-${local.name}-*",
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:airflow-${local.name}-*:log-stream:*",
         ]
+      },
+      {
+        # Log delivery actions operate on delivery objects, not log groups —
+        # they cannot be scoped to a specific resource ARN.
+        Effect = "Allow"
+        Action = [
+          "logs:DescribeLogGroups",
+          "logs:GetLogDelivery",
+          "logs:ListLogDeliveries",
+          "logs:CreateLogDelivery",
+          "logs:UpdateLogDelivery",
+          "logs:DeleteLogDelivery",
+        ]
+        Resource = "*"
       },
       {
         Effect   = "Allow"
@@ -131,7 +144,28 @@ resource "aws_iam_role_policy" "mwaa" {
           "sqs:ReceiveMessage",
           "sqs:SendMessage",
         ]
-        Resource = "arn:aws:sqs:${data.aws_region.current.name}:*:airflow-celery-*"
+        Resource = "arn:aws:sqs:${var.aws_region}:*:airflow-celery-*"
+      },
+      {
+        # MWAA's internal Celery SQS queue is KMS-encrypted.
+        # GenerateDataKey* is required to publish (SendMessage); Decrypt is
+        # required to consume. ViaService scopes this to calls made through
+        # SQS and S3, avoiding broad KMS access.
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:GenerateDataKey*",
+        ]
+        Resource = "*"
+        Condition = {
+          StringLike = {
+            "kms:ViaService" = [
+              "sqs.${var.aws_region}.amazonaws.com",
+              "s3.${var.aws_region}.amazonaws.com",
+            ]
+          }
+        }
       },
       {
         # Secrets Manager backend — Snowflake connection lives at
@@ -142,7 +176,7 @@ resource "aws_iam_role_policy" "mwaa" {
           "secretsmanager:DescribeSecret",
           "secretsmanager:ListSecrets",
         ]
-        Resource = "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:airflow/*"
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:airflow/*"
       },
     ]
   })
@@ -236,6 +270,9 @@ resource "aws_mwaa_environment" "this" {
     # Resolve Airflow connections and variables from Secrets Manager.
     "secrets.backend"        = "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend"
     "secrets.backend_kwargs" = jsonencode({ connections_prefix = "airflow/connections", variables_prefix = "airflow/variables" })
+    # Explicit parallelism cap — also serves as the change that forces MWAA to
+    # do a full environment restart (and reinstall requirements.txt) on apply.
+    "core.parallelism"       = "32"
   }
 
   logging_configuration {
@@ -261,7 +298,9 @@ resource "aws_mwaa_environment" "this" {
     }
   }
 
-  tags = { Name = local.name }
+  tags = {
+    Name                = local.name
+  }
 
   depends_on = [aws_iam_role_policy.mwaa]
 }

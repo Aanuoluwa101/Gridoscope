@@ -10,7 +10,11 @@ Hourly DAG that:
 6. Branches: runs marts on success, alerts on test failure
 """
 
+import json
+import os
+import subprocess
 from datetime import datetime, timedelta
+
 from airflow.decorators import dag, task
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
@@ -32,6 +36,33 @@ DEFAULT_ARGS = {
     "email_on_failure": True,
     "email": ["aanuayodeji101@gmail.com"],
 }
+
+
+def _run_dbt(args: list, dbt_dir: str, profiles_dir: str) -> str:
+    """
+    Run a dbt command with credentials read from the Airflow Snowflake
+    connection at task execution time.
+
+    The connection (gridoscope_snowflake_dbt_prod) is backed by Secrets
+    Manager, so no credentials live in the DAG file or env vars.
+    """
+    from airflow.hooks.base import BaseHook
+
+    conn = BaseHook.get_connection("gridoscope_snowflake_dbt_prod")
+    extra = json.loads(conn.extra or "{}")
+
+    env = {
+        **os.environ,
+        "SNOWFLAKE_ACCOUNT": extra.get("account", conn.host),
+        "SNOWFLAKE_DBT_USER": conn.login,
+        "SNOWFLAKE_DBT_PASSWORD": conn.password,
+    }
+    cmd = ["dbt"] + args + ["--profiles-dir", profiles_dir]
+    result = subprocess.run(cmd, cwd=dbt_dir, env=env, capture_output=True, text=True)
+    print(result.stdout)
+    if result.returncode != 0:
+        raise RuntimeError(f"dbt {args[0]} failed:\n{result.stderr}")
+    return result.stdout
 
 
 @dag(
@@ -57,7 +88,6 @@ def gridoscope_hourly_load():
     )
 
     # --- Sense S3 for the current hour's partition ----------------------------
-    # logical_date is the data interval start — runs at :15 sense for :00 data.
     sense_meter_readings = S3KeySensor(
         task_id="sense_meter_readings_partition",
         bucket_name=BUCKET,
@@ -76,27 +106,10 @@ def gridoscope_hourly_load():
         mode="reschedule",
     )
 
-    # --- Validate partition completeness -------------------------------------
-    @task(task_id="validate_partition")
-    def validate_partition(logical_date):
-        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-
-        hook = S3Hook(aws_conn_id="aws_default")
-        prefix = (
-            f"raw/meter.readings/"
-            f"year={logical_date.strftime('%Y')}/"
-            f"month={logical_date.strftime('%m')}/"
-            f"day={logical_date.strftime('%d')}/"
-            f"hour={logical_date.strftime('%H')}/"
-        )
-        keys = hook.list_keys(bucket_name=BUCKET, prefix=prefix) or []
-        json_files = [k for k in keys if k.endswith(".json")]
-
-        if not json_files:
-            raise ValueError(f"Partition empty: s3://{BUCKET}/{prefix}")
-
-        print(f"Partition validated: {len(json_files)} files at {prefix}")
-        return {"file_count": len(json_files), "s3_prefix": prefix}
+    # A partition completeness task could live here — e.g. assert a minimum
+    # file count per zone, or check that all 5 zones contributed files.
+    # Omitted for simplicity: the S3KeySensor above already confirms at least
+    # one file exists before we proceed.
 
     # --- Load into Snowflake raw layer ----------------------------------------
     copy_into_raw = SQLExecuteQueryOperator(
@@ -105,28 +118,30 @@ def gridoscope_hourly_load():
         sql="sql/copy_into_raw.sql",
     )
 
-    # --- Run dbt staging models -----------------------------------------------
-    @task.bash(task_id="dbt_run_staging")
-    def dbt_run_staging(dbt_dir: str, profiles_dir: str) -> str:
-        return f"cd {dbt_dir} && dbt run --profiles-dir {profiles_dir} --select staging"
+    # --- dbt tasks — credentials read from Airflow connection at runtime ------
+    # _run_dbt pulls from gridoscope_snowflake_dbt_prod (Secrets Manager backed)
+    # and passes SNOWFLAKE_* as env vars to the subprocess so profiles.yml works.
 
-    # --- Test staging models --------------------------------------------------
-    @task.bash(task_id="dbt_test_staging")
+    @task(task_id="dbt_run_staging")
+    def dbt_run_staging(dbt_dir: str, profiles_dir: str) -> str:
+        return _run_dbt(["run", "--select", "staging"], dbt_dir, profiles_dir)
+
+    @task(task_id="dbt_test_staging")
     def dbt_test_staging(dbt_dir: str, profiles_dir: str) -> str:
-        return f"cd {dbt_dir} && dbt test --profiles-dir {profiles_dir} --select staging"
+        return _run_dbt(["test", "--select", "staging"], dbt_dir, profiles_dir)
+
+    @task(task_id="dbt_run_marts")
+    def dbt_run_marts(dbt_dir: str, profiles_dir: str) -> str:
+        return _run_dbt(["run", "--select", "mart"], dbt_dir, profiles_dir)
 
     # --- Branch: run marts OR alert on test failures --------------------------
     @task.branch(task_id="branch_on_staging_tests", trigger_rule=TriggerRule.ALL_DONE)
     def branch_on_test_results(ti=None):
+        # Failing tasks raise and never push an XCom value — safe to check for None.
         test_output = ti.xcom_pull(task_ids="dbt_test_staging", key="return_value")
         if test_output is not None:
             return "dbt_run_marts"
         return "notify_test_failure"
-
-    # --- Run mart models ------------------------------------------------------
-    @task.bash(task_id="dbt_run_marts")
-    def dbt_run_marts(dbt_dir: str, profiles_dir: str) -> str:
-        return f"cd {dbt_dir} && dbt run --profiles-dir {profiles_dir} --select mart"
 
     # --- Alert task -----------------------------------------------------------
     @task(task_id="notify_test_failure")
@@ -135,7 +150,6 @@ def gridoscope_hourly_load():
         print("Check task logs for dbt_test_staging details.")
 
     # --- Wire up dependencies -------------------------------------------------
-    validation_step = validate_partition()
     dbt_run_staging_step = dbt_run_staging(dbt_dir=DBT_DIR, profiles_dir=DBT_PROFILES_DIR)
     dbt_test_staging_step = dbt_test_staging(dbt_dir=DBT_DIR, profiles_dir=DBT_PROFILES_DIR)
     run_marts_step = dbt_run_marts(dbt_dir=DBT_DIR, profiles_dir=DBT_PROFILES_DIR)
@@ -145,7 +159,6 @@ def gridoscope_hourly_load():
     (
         start
         >> sense_meter_readings
-        >> validation_step
         >> copy_into_raw
         >> dbt_run_staging_step
         >> dbt_test_staging_step

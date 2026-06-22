@@ -21,7 +21,6 @@ variable "snowflake_username" {
 }
 
 
-
 variable "snowflake_database" {
   description = "Snowflake database name"
   type        = string
@@ -229,8 +228,27 @@ variable "zone_central_partition" {
 # MWAA
 # ---------------------------------------------------------------------------
 
-variable "mwaa_snowflake_password" {
-  description = "Snowflake password for the MWAA Airflow connection and dbt env var — stored in Secrets Manager"
+variable "mwaa_snowflake_airflow_user" {
+  description = "Snowflake user for the COPY INTO connection (GRIDOSCOPE_LOADER role)"
+  type        = string
+  default     = ""
+}
+
+variable "mwaa_snowflake_airflow_password" {
+  description = "Password for mwaa_snowflake_airflow_user"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "mwaa_snowflake_dbt_user" {
+  description = "Snowflake user for dbt transformations (GRIDOSCOPE_TRANSFORMER role)"
+  type        = string
+  default     = ""
+}
+
+variable "mwaa_snowflake_dbt_password" {
+  description = "Password for mwaa_snowflake_dbt_user"
   type        = string
   sensitive   = true
   default     = ""

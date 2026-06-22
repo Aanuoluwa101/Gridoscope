@@ -3,6 +3,11 @@ variable "environment" {
   type        = string
 }
 
+variable "aws_region" {
+  description = "AWS region — used to build ARNs in IAM policies"
+  type        = string
+}
+
 variable "vpc_id" {
   description = "VPC ID for the MWAA security group"
   type        = string
