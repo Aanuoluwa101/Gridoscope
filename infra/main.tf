@@ -228,4 +228,4 @@ module "consumer_service" {
   secrets = [
     { name = "POWERBI_PUSH_URL", value_from = aws_ssm_parameter.powerbi_push_url.arn }
   ]
-}
+}# test
