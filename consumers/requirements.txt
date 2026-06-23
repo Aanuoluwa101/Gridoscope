@@ -6,3 +6,4 @@ python-snappy==0.7.3
 aiohttp
 aws-msk-iam-sasl-signer-python==1.0.2
 boto3
+

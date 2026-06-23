@@ -257,7 +257,7 @@ resource "aws_mwaa_environment" "this" {
   schedulers  = var.schedulers
 
   # PUBLIC_ONLY: web server accessible via a public HTTPS URL (AWS-managed).
-  # Workers still run in private subnets — only the web server is public.
+  # Workers still run in private subnets — only the web server is public.  
   webserver_access_mode = "PUBLIC_ONLY"
 
   network_configuration {
