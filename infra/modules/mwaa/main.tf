@@ -200,8 +200,8 @@ resource "aws_secretsmanager_secret_version" "snowflake_conn" {
 
   secret_string = jsonencode({
     conn_type = "snowflake"
-    login     = var.snowflake_airflow_user  # User used for copy into raw. We call it airflow_user because airflow itself connects to snowflake and runs the command, not through dbt
-    password  = var.snowflake_airflow_password  
+    login     = var.snowflake_airflow_user # User used for copy into raw. We call it airflow_user because airflow itself connects to snowflake and runs the command, not through dbt
+    password  = var.snowflake_airflow_password
     host      = "${var.snowflake_organization}-${var.snowflake_account}"
     schema    = "RAW"
     extra = jsonencode({
@@ -225,8 +225,8 @@ resource "aws_secretsmanager_secret_version" "snowflake_dbt_conn" {
 
   secret_string = jsonencode({
     conn_type = "snowflake"
-    login     = var.snowflake_dbt_user       # User used for running dbt commands. Airflow still does the using but it is specifically for dbt commands
-    password  = var.snowflake_dbt_password   
+    login     = var.snowflake_dbt_user # User used for running dbt commands. Airflow still does the using but it is specifically for dbt commands
+    password  = var.snowflake_dbt_password
     host      = "${var.snowflake_organization}-${var.snowflake_account}"
     schema    = "STAGING"
     extra = jsonencode({
@@ -243,9 +243,9 @@ resource "aws_secretsmanager_secret_version" "snowflake_dbt_conn" {
 # ---------------------------------------------------------------------------
 
 resource "aws_mwaa_environment" "this" {
-  name              = local.name
-  airflow_version   = var.airflow_version
-  environment_class = var.environment_class
+  name               = local.name
+  airflow_version    = var.airflow_version
+  environment_class  = var.environment_class
   execution_role_arn = aws_iam_role.mwaa.arn
 
   source_bucket_arn    = var.bucket_arn
@@ -272,7 +272,7 @@ resource "aws_mwaa_environment" "this" {
     "secrets.backend_kwargs" = jsonencode({ connections_prefix = "airflow/connections", variables_prefix = "airflow/variables" })
     # Explicit parallelism cap — also serves as the change that forces MWAA to
     # do a full environment restart (and reinstall requirements.txt) on apply.
-    "core.parallelism"       = "16"
+    "core.parallelism" = "16"
   }
 
   logging_configuration {
