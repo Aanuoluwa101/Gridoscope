@@ -1,0 +1,58 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3MwaaSync",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::gridoscope-raw-prod/mwaa/*"
+    },
+    {
+      "Sid": "S3MwaaList",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::gridoscope-raw-prod",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": "mwaa/*"
+        }
+      }
+    },
+    {
+      "Sid": "ECRAuth",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECRPush",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:*:repository/gridoscope-prod"
+    },
+    {
+      "Sid": "ECSForceDeployment",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:UpdateService",
+        "ecs:DescribeServices"
+      ],
+      "Resource": [
+        "arn:aws:ecs:us-east-1:*:service/gridoscope-prod/gridoscope-prod-producer",
+        "arn:aws:ecs:us-east-1:*:service/gridoscope-prod/gridoscope-prod-consumer"
+      ]
+    }
+  ]
+}

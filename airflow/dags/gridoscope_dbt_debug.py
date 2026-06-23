@@ -53,7 +53,6 @@ def _run_dbt(args: list, dbt_dir: str, profiles_dir: str) -> str:
         "--profiles-dir", profiles_dir,
         "--log-path", "/tmp/dbt_logs",
         "--target-path", "/tmp/dbt_target",
-        "--packages-install-path", "/tmp/dbt_packages",
     ]
     result = subprocess.run(cmd, cwd=dbt_dir, env=env, capture_output=True, text=True)
     print(f"dbt returncode: {result.returncode}")

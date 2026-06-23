@@ -1,0 +1,36 @@
+name: Terraform Validate
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+
+jobs:
+  validate:
+    name: Format check and validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform format check
+        run: terraform fmt -check -recursive
+
+      # init downloads providers so validate can resolve references.
+      # -backend=false skips state configuration — there's no remote backend.
+      - name: Terraform init
+        run: terraform init -backend=false
+
+      # The Snowflake provider reads private_key = file("snowflake_tf_key.p8")
+      # at parse time. Create a stub so validate doesn't error on a missing file.
+      - name: Create stub Snowflake key
+        run: touch snowflake_tf_key.p8
+
+      - name: Terraform validate
+        run: terraform validate

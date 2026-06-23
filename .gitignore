@@ -40,3 +40,4 @@ notes.txt
 commands.txt
 profiles.yml
 gridoscope_dbt/.user.yml
+scripts/create_github_aws_user.sh

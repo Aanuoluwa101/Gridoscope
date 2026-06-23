@@ -78,7 +78,6 @@ def _run_dbt(args: list, dbt_dir: str, profiles_dir: str) -> str:
         "--profiles-dir", profiles_dir,
         "--log-path", "/tmp/dbt_logs",
         "--target-path", "/tmp/dbt_target",
-        "--packages-install-path", "/tmp/dbt_packages",
     ]
     result = subprocess.run(cmd, cwd=dbt_dir, env=env, capture_output=True, text=True)
     print(result.stdout)
@@ -116,8 +115,8 @@ def gridoscope_hourly_load():
     sense_meter_readings = S3KeySensor(
         task_id="sense_meter_readings_partition",
         bucket_name=BUCKET,
-        # TEMP: hardcoded partition for testing — restore the block below when done
-        bucket_key="raw/meter.readings/year=2026/month=06/day=20/hour=10/*.json",
+        # TEMP: hardcoded month for testing — restore the block below when done
+        bucket_key="raw/meter.readings/year=2026/month=06/day=*/hour=*/*.json",
         # bucket_key=(
         #     "raw/meter.readings/"
         #     "year={{ logical_date.strftime('%Y') }}/"

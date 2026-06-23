@@ -1,0 +1,103 @@
+name: Deploy ECS Services
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'producers/**'
+      - 'consumers/**'
+
+# Prevent concurrent deployments from overlapping.
+concurrency:
+  group: ecs-deploy
+  cancel-in-progress: false
+
+jobs:
+  # Detect which service directories actually changed so we only rebuild
+  # and redeploy what's necessary.
+  changes:
+    name: Detect changed services
+    runs-on: ubuntu-latest
+    outputs:
+      producer: ${{ steps.filter.outputs.producer }}
+      consumer: ${{ steps.filter.outputs.consumer }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            producer:
+              - 'producers/**'
+            consumer:
+              - 'consumers/**'
+
+  deploy-producer:
+    name: Build and deploy producer
+    needs: changes
+    if: needs.changes.outputs.producer == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push producer image
+        env:
+          IMAGE: ${{ steps.login-ecr.outputs.registry }}/gridoscope-prod:producer-latest
+        run: |
+          docker build -f producers/Dockerfile -t $IMAGE .
+          docker push $IMAGE
+
+      - name: Force new ECS deployment
+        run: |
+          aws ecs update-service \
+            --cluster gridoscope-prod \
+            --service gridoscope-prod-producer \
+            --force-new-deployment \
+            --no-cli-pager
+
+  deploy-consumer:
+    name: Build and deploy consumer
+    needs: changes
+    if: needs.changes.outputs.consumer == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push consumer image
+        env:
+          IMAGE: ${{ steps.login-ecr.outputs.registry }}/gridoscope-prod:consumer-latest
+        run: |
+          docker build -f consumers/Dockerfile -t $IMAGE .
+          docker push $IMAGE
+
+      - name: Force new ECS deployment
+        run: |
+          aws ecs update-service \
+            --cluster gridoscope-prod \
+            --service gridoscope-prod-consumer \
+            --force-new-deployment \
+            --no-cli-pager
