@@ -22,6 +22,7 @@ import asyncio
 import logging
 import os
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 from aiokafka import AIOKafkaProducer
@@ -174,13 +175,22 @@ class GridoscopeProducer:
         key   = event.zone_id.encode("utf-8")
         value = event.to_json().encode("utf-8")
 
+        # Stamp the Kafka record with the simulated time so the S3 sink's
+        # "Record" timestamp extractor partitions by simulated hour, not wall clock.
+        sim_ts_ms = int(
+            datetime.strptime(event.timestamp, "%Y-%m-%dT%H:%M:%SZ")
+            .replace(tzinfo=timezone.utc)
+            .timestamp() * 1000
+        )
+
         try:
             # Always send to readings topic
             await self._producer.send(
                 topic=self.cfg.readings_topic,
                 key=key,
                 value=value,
-                partition=partition
+                partition=partition,
+                timestamp_ms=sim_ts_ms,
             )
             self._events_sent += 1
 
@@ -190,6 +200,7 @@ class GridoscopeProducer:
                     topic=self.cfg.alerts_topic,
                     key=key,
                     value=value,
+                    timestamp_ms=sim_ts_ms,
                 )
                 self._alerts_sent += 1
 
