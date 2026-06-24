@@ -138,7 +138,7 @@ class PowerBIConfig:
     # Higher = fewer HTTP calls but slightly more latency.
     batch_size: int = 1
 
-    # Timeout in seconds for each HTTP push request.
+    # Timeout in seconds for each HTTP push request. 
     request_timeout_seconds: int = 5
 
     # Minimum seconds between consecutive pushes across all zones.

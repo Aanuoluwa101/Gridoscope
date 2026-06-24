@@ -116,15 +116,15 @@ def gridoscope_hourly_load():
         task_id="sense_meter_readings_partition",
         bucket_name=BUCKET,
         # TEMP: hardcoded month for testing — restore the block below when done
-        bucket_key="raw/meter.readings/year=2026/month=06/day=*/hour=*/*.json",
-        # bucket_key=(
-        #     "raw/meter.readings/"
-        #     "year={{ logical_date.strftime('%Y') }}/"
-        #     "month={{ logical_date.strftime('%m') }}/"
-        #     "day={{ logical_date.strftime('%d') }}/"
-        #     "hour={{ logical_date.strftime('%H') }}/"
-        #     "*.json"
-        # ),
+        # bucket_key="raw/meter.readings/year=2026/month=06/day=*/hour=*/*.json",
+        bucket_key=(
+            "raw/meter.readings/"
+            "year={{ logical_date.strftime('%Y') }}/"
+            "month={{ logical_date.strftime('%m') }}/"
+            "day={{ logical_date.strftime('%d') }}/"
+            "hour={{ logical_date.strftime('%H') }}/"
+            "*.json"
+        ),
         wildcard_match=True,
         aws_conn_id="aws_default",
         poke_interval=60,

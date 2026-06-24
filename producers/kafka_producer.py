@@ -112,7 +112,7 @@ class GridoscopeProducer:
                 ssl_context=ssl.create_default_context(),
             )
 
-        await self._ensure_topics(auth_kwargs)
+        await self._ensure_topics(auth_kwargs)  # making sure topics are available
 
         self._producer = AIOKafkaProducer(
             bootstrap_servers=self.cfg.bootstrap_servers,
