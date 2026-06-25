@@ -23,10 +23,10 @@ Why does the aggregator live separately from the consumer?
    spinning up a Kafka broker.
 """
 
-import time
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Optional
 
 from anomaly import AnomalyDetector
@@ -86,8 +86,7 @@ class WindowBucket:
     and converted into a ZoneAggregate.
     """
     zone_id:      str
-    opened_at:    float   # wall-clock time (time.monotonic()) when window opened
-    window_start: str     # simulated timestamp of first event in this window
+    window_start: str     # simulated timestamp (5-min boundary) when this window opened
 
     # Accumulators — updated on every incoming event
     total_kwh:        float = 0.0
@@ -195,28 +194,16 @@ class ZoneAggregator:
         self.expected_meter_count = expected_meter_count
         self._last_event_timestamp: str = ""
 
-        # --- Scale simulated-time config values to wall-clock seconds ---
-        #
-        # cfg.window_size_seconds and cfg.silence_threshold_seconds are
-        # expressed in SIMULATED time. We divide by speed_multiplier once
-        # here so every comparison against time.monotonic() (wall-clock)
-        # is already in the right unit. Nothing else in this class needs
-        # to know about the multiplier.
-        #
-        # Example: window_size_seconds=300, speed_multiplier=10
-        #   → _window_size_wall = 30.0 real seconds per window
-        #   → producer generates 5 minutes of simulated data in 30 real seconds
-        #   → consumer window closes in sync with that simulated 5-minute period
-        self._window_size_wall    = cfg.window_size_seconds    / cfg.speed_multiplier
-        self._silence_wall        = cfg.silence_threshold_seconds / cfg.speed_multiplier
-
+        # Windows are event-time based: a window closes when the incoming
+        # event's simulated timestamp crosses the window boundary, not when
+        # wall-clock seconds elapse. This means all zones close the same
+        # 5-minute slot simultaneously regardless of their message rate —
+        # residential zones (slower) and industrial zones (faster) both emit
+        # window_start=05:10/window_end=05:15 for the same simulated period.
         logger.info(
             "[Aggregator][%s] speed_multiplier=%.1f | "
-            "window=%.1fs wall-clock (%ds simulated) | "
-            "silence=%.1fs wall-clock (%ds simulated)",
-            zone_id, cfg.speed_multiplier,
-            self._window_size_wall, cfg.window_size_seconds,
-            self._silence_wall, cfg.silence_threshold_seconds,
+            "window=%ds simulated (event-time)",
+            zone_id, cfg.speed_multiplier, cfg.window_size_seconds,
         )
 
         # Per-meter anomaly detectors.
@@ -225,9 +212,6 @@ class ZoneAggregator:
 
         # Current open window bucket — None until first event arrives
         self._current_bucket: Optional[WindowBucket] = None
-
-        # Wall-clock time when the current window opened
-        self._window_opened_at: float = 0.0
 
         # Previous window's total_kwh — used for delta% calculation
         self._prev_total_kwh: Optional[float] = None
@@ -247,12 +231,11 @@ class ZoneAggregator:
             meter_id, zone_id, timestamp, kwh_delta, power_kw,
             power_factor, voltage, frequency_hz, meter_state, is_anomaly
         """
-        now       = time.monotonic()
         timestamp = event.get("timestamp", "")
         if timestamp:
             self._last_event_timestamp = timestamp
-            
-        hour      = self._extract_hour(timestamp)
+
+        hour = self._extract_hour(timestamp)
 
         # --- Per-meter anomaly detection ---
         meter_id = event["meter_id"]
@@ -265,24 +248,20 @@ class ZoneAggregator:
             kwh_delta=event.get("kwh_delta", 0.0),
             hour=hour,
         )
-        # Write the anomaly verdict back into the event dict so the bucket
-        # can count it — the producer's is_anomaly flag uses the old flat
-        # rolling average, ours is the corrected per-hour version.
         event["is_anomaly"] = is_anomaly
 
-        # --- Tumbling window management ---
+        # --- Event-time tumbling window management ---
         aggregate = None
 
         if self._current_bucket is None:
-            # First event ever — open the first window
-            self._open_new_window(timestamp, now)
+            self._open_new_window(timestamp)
 
-        elif self._window_expired(now):
-            # Window duration elapsed — seal it and open a fresh one
-            aggregate = self._close_window(timestamp)
-            self._open_new_window(timestamp, now)
+        elif self._window_expired(timestamp):
+            # This event's simulated timestamp crossed the window boundary —
+            # seal the current window, then open a fresh one for this event.
+            aggregate = self._close_window()
+            self._open_new_window(timestamp)
 
-        # Ingest this event into the (now definitely open) bucket
         self._current_bucket.ingest(event, is_anomaly)
 
         return aggregate
@@ -294,70 +273,59 @@ class ZoneAggregator:
         """
         if self._current_bucket is None or self._current_bucket.reading_count == 0:
             return None
-        # from datetime import datetime, timezone
-        # end_ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        # return self._close_window(end_ts)
-        bucketed = self._get_window_bucket(self._last_event_timestamp)  # ← add this
-        return self._close_window(bucketed)
+        return self._close_window()
 
     # -----------------------------------------------------------------------
     # Internal helpers
     # -----------------------------------------------------------------------
     
     @staticmethod
-    def _get_window_bucket(timestamp: str) -> str:
-        """
-        Round a simulated timestamp down to the nearest 5-minute boundary.
-
-        All zones use the same fixed boundaries regardless of when their
-        first event arrived — so ZONE-NORTH and ZONE-SOUTH both seal at
-        14:55:00 instead of 14:52:01 and 14:56:03 respectively.
-
-        This makes MAX(window_end_ts) in Power BI reliably match all 5
-        zones simultaneously rather than picking just the latest one.
-        """
-        from datetime import datetime, timedelta
+    def _floor_to_window(timestamp: str, window_seconds: int) -> datetime:
+        """Floor a simulated timestamp to the nearest window boundary."""
         dt = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
-        floored = dt - timedelta(
-            minutes=dt.minute % 5,
-            seconds=dt.second,
+        total_seconds = dt.hour * 3600 + dt.minute * 60 + dt.second
+        floored_seconds = (total_seconds // window_seconds) * window_seconds
+        return dt.replace(
+            hour=floored_seconds // 3600,
+            minute=(floored_seconds % 3600) // 60,
+            second=floored_seconds % 60,
         )
-        return floored.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-
-    def _window_expired(self, now: float) -> bool:
+    def _window_expired(self, timestamp: str) -> bool:
         """
-        True if the current window has been open longer than the
-        wall-clock equivalent of window_size_seconds.
-
-        Uses _window_size_wall (already divided by speed_multiplier)
-        so this comparison is always in real wall-clock seconds,
-        regardless of simulation speed.
+        True when the event's simulated timestamp has crossed the current
+        window's end boundary. This is event-time windowing — window
+        boundaries are determined by the data, not by wall-clock seconds.
+        All zones close the same simulated slot simultaneously regardless
+        of their message rate.
         """
-        return (now - self._window_opened_at) >= self._window_size_wall
+        window_start_dt = datetime.strptime(self._current_bucket.window_start, "%Y-%m-%dT%H:%M:%SZ")
+        window_end_dt   = window_start_dt + timedelta(seconds=self.cfg.window_size_seconds)
+        event_dt        = datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
+        return event_dt >= window_end_dt
 
-    def _open_new_window(self, timestamp: str, now: float) -> None:
-        bucketed_start = self._get_window_bucket(timestamp)     # ← add this
+    def _open_new_window(self, timestamp: str) -> None:
+        window_start_dt = self._floor_to_window(timestamp, self.cfg.window_size_seconds)
         self._current_bucket = WindowBucket(
             zone_id=self.zone_id,
-            opened_at=now,
-            window_start=bucketed_start,                        # ← use bucketed
+            window_start=window_start_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
         )
-        self._window_opened_at = now
 
-    def _close_window(self, end_timestamp: str) -> ZoneAggregate:
-        bucketed_end = self._get_window_bucket(end_timestamp)
+    def _close_window(self) -> ZoneAggregate:
+        window_start_dt = datetime.strptime(self._current_bucket.window_start, "%Y-%m-%dT%H:%M:%SZ")
+        window_end_ts   = (window_start_dt + timedelta(seconds=self.cfg.window_size_seconds)).strftime("%Y-%m-%dT%H:%M:%SZ")
         aggregate = self._current_bucket.seal(
-            window_end_ts=bucketed_end,                         # ← use bucketed
+            window_end_ts=window_end_ts,
             expected_meter_count=self.expected_meter_count,
             prev_total_kwh=self._prev_total_kwh,
         )
         self._prev_total_kwh = aggregate.total_kwh
         self._windows_closed += 1
         logger.info(
-            "[Aggregator][%s] Window #%d closed | "
+            "[Aggregator][%s] Window #%d closed | %s → %s | "
             "kwh=%.3f | active=%d | silent=%d | faults=%d | anomalies=%d",
             self.zone_id, self._windows_closed,
+            self._current_bucket.window_start, window_end_ts,
             aggregate.total_kwh, aggregate.active_meter_count,
             aggregate.silent_meter_count, aggregate.fault_count,
             aggregate.anomaly_count,
