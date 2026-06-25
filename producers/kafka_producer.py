@@ -58,11 +58,12 @@ class GridoscopeProducer:
         self._producer: Optional[AIOKafkaProducer] = None
 
         # Simple throughput counters for terminal logging
-        self._events_sent   = 0
-        self._alerts_sent   = 0
-        self._send_errors   = 0
-        self._last_log_time = time.monotonic()
-        self._log_interval  = 30.0   # log throughput stats every 30 seconds
+        self._events_sent     = 0
+        self._alerts_sent     = 0
+        self._send_errors     = 0
+        self._last_log_time   = time.monotonic()
+        self._log_interval    = 30.0   # log throughput stats every 30 seconds
+        self._latest_sim_time = "N/A"  # most recent simulated timestamp seen
 
     async def __aenter__(self):
         await self.start()
@@ -182,6 +183,7 @@ class GridoscopeProducer:
             .replace(tzinfo=timezone.utc)
             .timestamp() * 1000
         )
+        self._latest_sim_time = event.timestamp
 
         try:
             # Always send to readings topic
@@ -220,8 +222,9 @@ class GridoscopeProducer:
         if now - self._last_log_time >= self._log_interval:
             rate = self._events_sent / max(1, now - self._last_log_time + self._log_interval)
             logger.info(
-                "[Producer] Stats | readings_sent=%d | alerts_sent=%d | "
+                "[Producer] Stats | sim_time=%s | readings_sent=%d | alerts_sent=%d | "
                 "errors=%d | approx_rate=%.1f msg/s",
-                self._events_sent, self._alerts_sent, self._send_errors, rate
+                self._latest_sim_time, self._events_sent, self._alerts_sent,
+                self._send_errors, rate,
             )
             self._last_log_time = now

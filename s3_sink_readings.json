@@ -18,10 +18,10 @@
     "rotate.interval.ms": "30000",
     "rotate.schedule.interval.ms": "30000",
 
-    "locale": "en_US",
+    "locale": "en-US",
     "timezone": "UTC",
 
-    "timestamp.extractor": "Wallclock",
+    "timestamp.extractor": "Record",
 
     "partitioner.class": "io.confluent.connect.storage.partitioner.TimeBasedPartitioner",
     "path.format": "'year'=YYYY/'month'=MM/'day'=dd/'hour'=HH",
