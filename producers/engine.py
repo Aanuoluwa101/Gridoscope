@@ -218,7 +218,7 @@ def main():
             total_meters=int(os.environ.get("TOTAL_METERS", "5")),
             speed_multiplier=float(os.environ.get("SPEED_MULTIPLIER", "100")),
             random_seed=int(random_seed_env) if random_seed_env else None,
-            sim_start=datetime(2026, 6, 27, 6, 0, 0),
+            sim_start=datetime(2026, 6, 27, 16, 0, 0),
         ),
         kafka=KafkaConfig(
             bootstrap_servers=os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
