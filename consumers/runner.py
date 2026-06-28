@@ -137,7 +137,7 @@ def main():
             #
             # speed_multiplier=1.0  → real time, windows close every 5 real minutes
             # speed_multiplier=10.0 → 10× faster, windows close every 30 real seconds
-            # speed_multiplier=60.0 → 60× faster, windows close every 5 real seconds
+            # speed_multiplier=60.0 → 60× faster, windows close every 5 real seconds 
             speed_multiplier=float(os.environ.get("SPEED_MULTIPLIER", "100")),  # ← match producer's speed_multiplier
 
             window_size_seconds=300,         # 5 simulated minutes per window

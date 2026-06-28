@@ -91,7 +91,7 @@ def _run_dbt(args: list, dbt_dir: str, profiles_dir: str) -> str:
 
 @dag(
     dag_id="gridoscope_hourly_load",
-    schedule="15 * * * *",  # 15 past each hour — MSK Connect flushes on the hour
+    schedule=None, #"15 * * * *",  # 15 past each hour — MSK Connect flushes on the hour
     start_date=datetime(2026, 6, 1),
     catchup=False,
     max_active_runs=1,
@@ -115,16 +115,19 @@ def gridoscope_hourly_load():
     sense_meter_readings = S3KeySensor(
         task_id="sense_meter_readings_partition",
         bucket_name=BUCKET,
-        # TEMP: hardcoded month for testing — restore the block below when done
-        # bucket_key="raw/meter.readings/year=2026/month=06/day=*/hour=*/*.json",
-        bucket_key=(
-            "raw/meter.readings/"
-            "year={{ logical_date.strftime('%Y') }}/"
-            "month={{ logical_date.strftime('%m') }}/"
-            "day={{ logical_date.strftime('%d') }}/"
-            "hour={{ logical_date.strftime('%H') }}/"
-            "*.json"
-        ),
+        # TEMP: Jun-Jul 2026 backfill — restore the dynamic block below when done
+        # bucket_key=(
+        #     "raw/meter.readings/"
+        #     "year={{ logical_date.strftime('%Y') }}/"
+        #     "month={{ logical_date.strftime('%m') }}/"
+        #     "day={{ logical_date.strftime('%d') }}/"
+        #     "hour={{ logical_date.strftime('%H') }}/"
+        #     "*.json"
+        # ),
+        # Narrow single-hour check — wildcard_match=True lists only files under
+        # this one prefix. COPY INTO handles both months; sensor just confirms
+        # data exists.
+        bucket_key="raw/meter.readings/year=2026/month=07/day=01/hour=10/*.json",
         wildcard_match=True,
         aws_conn_id="aws_default",
         poke_interval=60,

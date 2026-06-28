@@ -210,7 +210,7 @@ def main():
     # Every value below falls back to the existing local dev settings when
     # the env var isn't set, so `python producers/engine.py` with no
     # environment behaves exactly as before. In ECS, the task definition
-    # sets these (see infra/modules/ecs_service).
+    # sets these (see infra/modules/ecs_service). 
     random_seed_env = os.environ.get("RANDOM_SEED", "42")
 
     cfg = GridoscopeConfig(

@@ -98,7 +98,7 @@ def gridoscope_dbt_debug():
 
     @task(task_id="dbt_run_staging")
     def dbt_run_staging():
-        return _run_dbt(["run", "--select", "staging"], DBT_DIR, DBT_PROFILES_DIR)
+        return _run_dbt(["run", "--select", "mart_zone_daily"], DBT_DIR, DBT_PROFILES_DIR)
 
     check_dbt_env() >> dbt_run_staging()
 

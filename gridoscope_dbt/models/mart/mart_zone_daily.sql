@@ -62,7 +62,7 @@ SELECT
     silent_meter_count,
 
     -- uptime: active meters as % of 100 expected per zone
-    ROUND(active_meter_count / 2 * 100, 2)      AS uptime_pct
+    ROUND(active_meter_count / 100.0 * 100, 2) AS uptime_pct
 
 FROM daily_zone
 ORDER BY zone_id, reading_date
