@@ -56,7 +56,7 @@ Everything runs on AWS. All infrastructure is defined in Terraform.
 
 ## 2. Architecture
 
-![Full pipeline architecture diagram](docs/images/architecture.png)
+![Full pipeline architecture diagram](docs/images/architecture-full.png)
 
 ### Streaming path (real-time)
 
