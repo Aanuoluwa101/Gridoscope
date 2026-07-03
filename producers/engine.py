@@ -30,7 +30,6 @@ from meter_state_machine import MeterStateMachine, SimulationClock
 from scenario_engine import ScenarioEngine
 from kafka_producer import GridoscopeProducer
 
-# Configure logging — structured enough to be useful, not so verbose it scrolls forever
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -70,9 +69,6 @@ async def run_meter(
         if event is not None:
             await producer.send_event(event)
 
-        # Sleep for this meter's interval plus a random jitter.
-        # asyncio.sleep() suspends THIS coroutine but lets others run —
-        # this is the key to concurrent execution without threads.
         jitter       = random.uniform(0, jitter_range)
         sleep_seconds = profile.interval_seconds + jitter
         await asyncio.sleep(sleep_seconds)
@@ -102,18 +98,17 @@ async def run_simulation(cfg: GridoscopeConfig) -> None:
     if cfg.simulation.random_seed is not None:
         random.seed(cfg.simulation.random_seed)
 
-    # Step 1: Generate the full meter fleet (500 profiles)
     fleet = generate_meter_fleet(cfg)
 
-    # Step 2: Create a shared simulation clock
+    # Create a shared simulation clock.
     # All meters and the scenario engine share this single clock instance
     # so everyone agrees on what time it is.
     clock = SimulationClock(
         speed_multiplier=cfg.simulation.speed_multiplier,
-        sim_start=cfg.simulation.sim_start, 
+        sim_start=cfg.simulation.sim_start,
         )
 
-    # Step 3: Create a MeterStateMachine for each profile
+    # Create a MeterStateMachine for each profile.
     # We use a separate RNG per state machine (seeded from the profile index)
     # so meters behave independently — one meter's random rolls don't affect another's.
     state_machines: list[MeterStateMachine] = []
@@ -130,7 +125,7 @@ async def run_simulation(cfg: GridoscopeConfig) -> None:
         )
         state_machines.append(sm)
 
-    # Step 4: Build the zone → state_machines mapping for the ScenarioEngine
+    # Build the zone → state_machines mapping for the ScenarioEngine
     meters_by_zone: dict[str, list[MeterStateMachine]] = {
         zone: [] for zone in cfg.simulation.zones
     }
@@ -141,7 +136,6 @@ async def run_simulation(cfg: GridoscopeConfig) -> None:
     for zone, meters in meters_by_zone.items():
         logger.info("  %s: %d meters", zone, len(meters))
 
-    # Step 5: Start the Kafka producer and run everything
     async with GridoscopeProducer(cfg.kafka) as producer:
 
         # Scenario engine runs as a background coroutine
@@ -169,9 +163,6 @@ async def run_simulation(cfg: GridoscopeConfig) -> None:
 
         logger.info("[Engine] Launching %d meter coroutines + scenario engine...", len(meter_tasks))
 
-        # asyncio.gather() starts all coroutines and runs them concurrently.
-        # They all share the same event loop — cooperative multitasking.
-        # The simulation runs until Ctrl+C or an exception propagates.
         try:
             await asyncio.gather(*all_tasks)
         except asyncio.CancelledError:

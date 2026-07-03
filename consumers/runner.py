@@ -42,8 +42,6 @@ logger = logging.getLogger(__name__)
 # zones round-robin (meter_index % n_zones), so the count just needs to match
 # TOTAL_METERS split evenly across zones, with the remainder going to the
 # first few zones in list order.
-# In production you'd fetch this from a metadata store rather than
-# computing it — but for this project keeping it here is fine.
 # ---------------------------------------------------------------------------
 def _meters_per_zone(total_meters: int) -> dict[str, int]:
     zones = list(ZONE_PARTITION.keys())
@@ -79,7 +77,6 @@ async def run_consumer_group(cfg: ConsumerConfig) -> None:
 
     async with PowerBISink(cfg.powerbi) as sink:
 
-        # Create one consumer per partition
         consumers = [
             ZoneConsumer(
                 partition=partition,
@@ -90,16 +87,13 @@ async def run_consumer_group(cfg: ConsumerConfig) -> None:
             for zone_id, partition in ZONE_PARTITION.items()
         ]
 
-        # Start all consumers (connects to Kafka, assigns partitions)
         for c in consumers:
             await c.start()
 
         logger.info("All %d zone consumers connected and running.", len(consumers))
         logger.info("Waiting for messages... (Ctrl+C to stop)")
 
-        # Run all consumer loops concurrently
-        # return_exceptions=True means one failing consumer doesn't
-        # immediately cancel the others — they keep running.
+        # return_exceptions=True means one failing consumer doesn't cancel the others.
         try:
             await asyncio.gather(
                 *[c.run() for c in consumers],

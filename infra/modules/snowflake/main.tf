@@ -1,5 +1,3 @@
-# snowflake main.tf
-
 terraform {
   required_providers {
     aws = {
@@ -16,7 +14,6 @@ terraform {
 data "aws_caller_identity" "current" {}
 
 
-# created first with hardcoded role arn
 resource "snowflake_storage_integration" "s3_int" {
   name                      = "S3_GRIDOSCOPE_INT_${upper(var.environment)}"
   type                      = "EXTERNAL_STAGE"

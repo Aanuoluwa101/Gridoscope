@@ -45,8 +45,6 @@ def gridoscope_test():
     start = EmptyOperator(task_id="start")
     end = EmptyOperator(task_id="end")
 
-    # 1. Use @task instead of PythonOperator. 
-    # 2. Inject specific context keys directly into the signature instead of **context.
     @task(task_id="sense_s3_files")
     def simulate_s3_sense():
         print("Simulating S3 sense for logical_date=today")
@@ -55,19 +53,16 @@ def gridoscope_test():
     @task(task_id="simulate_load")
     def simulate_snowflake_load():
         print("Simulating COPY INTO raw.meter_readings")
-        # 3. Simply return the value to automatically push it to XCom
         return 12450
 
     @task(task_id="dbt_run_staging")
     def dbt_run_staging(dbt_dir: str, profiles_dir: str) -> str:
         return _run_dbt(["run", "--select", "staging"], dbt_dir, profiles_dir)
     
-    # Call the decorated tasks to instantiate them
     sense_output = simulate_s3_sense()
     rows_output = simulate_snowflake_load()
     dbt_run_staging_step = dbt_run_staging(dbt_dir="dbt_actual_dir", profiles_dir="dbt_profile_actual_dir")
 
-    # Clean, modern dependency layout
     start >> sense_output >> rows_output >> dbt_run_staging_step >> end
 
 dag_instance = gridoscope_test()

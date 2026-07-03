@@ -1,10 +1,6 @@
 """
-gridoscope_dbt_debug.py — temporary debug DAG, delete once dbt staging is confirmed working.
-
-Runs dbt staging in isolation: no schedule, no retries, no downstream tasks.
-Tasks:
-  1. check_dbt_env  — prints whether the project dir and profiles.yml exist
-  2. dbt_run_staging — runs `dbt run --select staging` using the same venv logic
+gridoscope_dbt_debug.py 
+Runs dbt staging in isolation
 """
 
 import json

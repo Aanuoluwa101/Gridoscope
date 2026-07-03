@@ -45,7 +45,6 @@ class KafkaConfig:
     alerts_topic: str = "meter.alerts"
 
     # How many times to retry a failed send before giving up.
-    # In production you'd want this higher (5-10).
     retries: int = 3
 
     # Maximum time (ms) to wait before flushing a batch of messages.

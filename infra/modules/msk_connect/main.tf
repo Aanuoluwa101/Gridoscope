@@ -1,5 +1,3 @@
-# msk_connect module main.tf 
-
 terraform {
   required_providers {
     aws = {

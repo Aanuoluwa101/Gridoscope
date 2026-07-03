@@ -166,7 +166,6 @@ class PowerBISink:
         in numeric streaming dataset fields.
         """
         row = asdict(agg)
-        # Replace None with 0.0 for numeric fields
         if row["demand_vs_prev_window_pct"] is None:
             row["demand_vs_prev_window_pct"] = 0.0
         return row

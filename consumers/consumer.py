@@ -52,14 +52,10 @@ class ZoneConsumer:
                   passed to ZoneAggregator for silent meter detection
     """
 
-    # How many messages to fetch per poll call.
     # 100 is a good balance — large enough to amortise network round-trips,
     # small enough that processing one batch doesn't block the event loop long.
     MAX_POLL_RECORDS = 100
 
-    # How long (ms) to wait for messages if the topic is quiet.
-    # 1000ms = 1 second. The consumer yields back to the event loop while
-    # waiting, so other coroutines (other zones) continue running.
     POLL_TIMEOUT_MS = 1000
 
     def __init__(
@@ -192,7 +188,6 @@ class ZoneConsumer:
                 if not self._running:
                     break
 
-                # Parse the JSON payload
                 event = self._parse_message(message)
                 if event is None:
                     continue   # skip unparseable messages
@@ -206,10 +201,6 @@ class ZoneConsumer:
 
                 self._messages_processed += 1
 
-                # Commit offset after every message.
-                # In production you'd batch this (commit every N messages)
-                # to reduce broker load. For a dev project, per-message
-                # commits are simpler and the overhead is negligible.
                 await self._consumer.commit()
 
         except KafkaError as exc:

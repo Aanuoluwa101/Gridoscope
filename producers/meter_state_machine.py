@@ -172,7 +172,6 @@ class MeterStateMachine:
         self.clock   = clock
         self.rng     = rng
 
-        # Start all meters in NORMAL state
         self.state = MeterState.NORMAL
 
         # Degraded state parameters — set when entering DEGRADED, cleared on recovery
@@ -218,7 +217,6 @@ class MeterStateMachine:
             # No event — consumer will detect via timeout
             return None
 
-        # Generate a reading shaped by current state and profile
         sim_time    = self.clock.now()
         kwh_delta   = self._compute_kwh_delta(sim_time)
         voltage     = self._compute_voltage()
@@ -229,7 +227,6 @@ class MeterStateMachine:
         is_anomaly  = self._detect_anomaly(kwh_delta, hour=sim_time.hour)
         signal      = self._compute_signal_strength()
 
-        # Advance the cumulative odometer
         self.profile.cumulative_kwh += kwh_delta
 
         # Update rolling delta history for future anomaly detection
@@ -321,7 +318,6 @@ class MeterStateMachine:
             stress = max(0, 1.0 - abs(hour - 14) / 3.0)
             base *= 1.0 + stress * (self.cfg.faults.heat_stress_multiplier - 1.0)
 
-        # Apply scenario override if active
         if self._fault_rate_override is not None:
             base *= self._fault_rate_override
 

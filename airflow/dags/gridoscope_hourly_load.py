@@ -24,22 +24,17 @@ from airflow.utils.trigger_rule import TriggerRule
 
 BUCKET = "gridoscope-raw-prod"
 
-# dbt project lives under mwaa/dags/dbt/ in S3, which MWAA syncs to
-# /usr/local/airflow/dags/dbt/ on every worker.
 DBT_DIR = "/usr/local/airflow/dags/dbt/gridoscope_dbt"
 DBT_PROFILES_DIR = "/usr/local/airflow/dags/dbt/gridoscope_dbt"
 
-# dbt-core conflicts with MWAA 2.10.3's pinned pathspec and isodate, so it
-# cannot be installed via requirements.txt. Instead, _run_dbt creates an
-# isolated venv here on first use and reuses it for the worker's lifetime.
+# dbt-core conflicts with MWAA 2.10.3's 
+# _run_dbt creates an isolated venv on first use and reuses it for the worker's lifetime.
 _DBT_VENV = "/tmp/dbt_venv"
 
 DEFAULT_ARGS = {
     "owner": "gridoscope",
     "retries": 1,
     "retry_delay": timedelta(minutes=1),
-    # "email_on_failure": True,
-    # "email": ["aanuayodeji101@gmail.com"],
 }
 
 
@@ -72,8 +67,9 @@ def _run_dbt(args: list, dbt_dir: str, profiles_dir: str) -> str:
         "SNOWFLAKE_DBT_USER": conn.login,
         "SNOWFLAKE_DBT_PASSWORD": conn.password,
     }
+
     # DAGs dir is read-only on MWAA (S3-synced). Redirect dbt's log and
-    # compiled artifact output to /tmp so initialization doesn't fail silently.
+    # compiled artifact output to /tmp to fix failing initialization.
     cmd = [dbt_bin] + args + [
         "--profiles-dir", profiles_dir,
         "--log-path", "/tmp/dbt_logs",
@@ -91,7 +87,7 @@ def _run_dbt(args: list, dbt_dir: str, profiles_dir: str) -> str:
 
 @dag(
     dag_id="gridoscope_hourly_load",
-    schedule=None, #"15 * * * *",  # 15 past each hour — MSK Connect flushes on the hour
+    schedule="15 * * * *",  # 15 past each hour — MSK Connect flushes on the hour
     start_date=datetime(2026, 6, 1),
     catchup=False,
     max_active_runs=1,
@@ -111,7 +107,7 @@ def gridoscope_hourly_load():
         trigger_rule="none_failed_min_one_success",
     )
 
-    # --- Sense S3 for the current hour's partition ----------------------------
+    # Sense S3 for the current hour's partition
     sense_meter_readings = S3KeySensor(
         task_id="sense_meter_readings_partition",
         bucket_name=BUCKET,
@@ -124,9 +120,6 @@ def gridoscope_hourly_load():
         #     "hour={{ logical_date.strftime('%H') }}/"
         #     "*.json"
         # ),
-        # Narrow single-hour check — wildcard_match=True lists only files under
-        # this one prefix. COPY INTO handles both months; sensor just confirms
-        # data exists.
         bucket_key="raw/meter.readings/year=2026/month=07/day=01/hour=10/*.json",
         wildcard_match=True,
         aws_conn_id="aws_default",
@@ -135,21 +128,12 @@ def gridoscope_hourly_load():
         mode="reschedule",
     )
 
-    # A partition completeness task could live here — e.g. assert a minimum
-    # file count per zone, or check that all 5 zones contributed files.
-    # Omitted for simplicity: the S3KeySensor above already confirms at least
-    # one file exists before we proceed.
-
-    # --- Load into Snowflake raw layer ----------------------------------------
+    # Load into Snowflake raw layer
     copy_into_raw = SQLExecuteQueryOperator(
         task_id="copy_into_raw_meter_readings",
         conn_id="gridoscope_snowflake_prod",
         sql="sql/copy_into_raw.sql",
     )
-
-    # --- dbt tasks — credentials read from Airflow connection at runtime ------
-    # _run_dbt pulls from gridoscope_snowflake_dbt_prod (Secrets Manager backed)
-    # and passes SNOWFLAKE_* as env vars to the subprocess so profiles.yml works.
 
     @task(task_id="dbt_run_staging")
     def dbt_run_staging(dbt_dir: str, profiles_dir: str) -> str:
@@ -163,7 +147,7 @@ def gridoscope_hourly_load():
     def dbt_run_marts(dbt_dir: str, profiles_dir: str) -> str:
         return _run_dbt(["run", "--select", "mart"], dbt_dir, profiles_dir)
 
-    # --- Branch: run marts OR alert on test failures --------------------------
+    # Branch: run marts OR alert on test failures 
     @task.branch(task_id="branch_on_staging_tests", trigger_rule=TriggerRule.ALL_DONE)
     def branch_on_test_results(ti=None):
         # Failing tasks raise and never push an XCom value — safe to check for None.
@@ -172,13 +156,13 @@ def gridoscope_hourly_load():
             return "dbt_run_marts"
         return "notify_test_failure"
 
-    # --- Alert task -----------------------------------------------------------
+    # Alert task 
     @task(task_id="notify_test_failure")
     def notify_test_failure(ds):
         print(f"ALERT: dbt staging tests failed for execution_date={ds}")
         print("Check task logs for dbt_test_staging details.")
 
-    # --- Wire up dependencies -------------------------------------------------
+    # Full DAG 
     dbt_run_staging_step = dbt_run_staging(dbt_dir=DBT_DIR, profiles_dir=DBT_PROFILES_DIR)
     dbt_test_staging_step = dbt_test_staging(dbt_dir=DBT_DIR, profiles_dir=DBT_PROFILES_DIR)
     run_marts_step = dbt_run_marts(dbt_dir=DBT_DIR, profiles_dir=DBT_PROFILES_DIR)

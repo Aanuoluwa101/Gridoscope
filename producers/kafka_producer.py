@@ -114,7 +114,7 @@ class GridoscopeProducer:
                 ssl_context=ssl.create_default_context(),
             )
 
-        await self._ensure_topics(auth_kwargs)  # making sure topics are available
+        await self._ensure_topics(auth_kwargs)
 
         self._producer = AIOKafkaProducer(
             bootstrap_servers=self.cfg.bootstrap_servers,
@@ -186,7 +186,6 @@ class GridoscopeProducer:
         self._latest_sim_time = event.timestamp
 
         try:
-            # Always send to readings topic
             await self._producer.send(
                 topic=self.cfg.readings_topic,
                 key=key,
@@ -196,7 +195,6 @@ class GridoscopeProducer:
             )
             self._events_sent += 1
 
-            # Also send to alerts topic if this is a fault event
             if event.event_type == "alert":
                 await self._producer.send(
                     topic=self.cfg.alerts_topic,
@@ -207,9 +205,7 @@ class GridoscopeProducer:
                 self._alerts_sent += 1
 
         except KafkaError as exc:
-            # Don't crash the simulation on a single send failure —
-            # log it and continue. In production you'd route these to
-            # a dead-letter queue or an alert channel.
+            # Don't crash the simulation on a single send failure — log and continue.
             self._send_errors += 1
             logger.warning("[Producer] Send failed for %s: %s", event.meter_id, exc)
 

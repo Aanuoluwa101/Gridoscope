@@ -33,6 +33,7 @@ Thumbs.db
 tmp/
 logs/
 .env
+.user.yml
 
 s3-sink-dev-setup.sh
 
