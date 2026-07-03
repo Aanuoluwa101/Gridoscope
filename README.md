@@ -44,7 +44,7 @@
 
 ## 1. Overview
 
-Gridoscope simulates a 500-meter smart grid network spanning five city zones and runs a complete data engineering pipeline from real-time streaming through historical analytics. The project was deliberately built to require fluency in both the streaming and batch paths — not a toy example that covers one pattern in isolation, but a unified system where both paths do real work and feed real dashboards.
+Gridoscope simulates a 500-meter smart grid network spanning five city zones and runs a complete data engineering pipeline from real-time streaming through historical analytics. The project was deliberately built to require fluency in both the streaming and batch paths — a unified system where both paths do real work and feed real dashboards.
 
 On the **streaming side**: a Python asyncio producer simulates 500 meters and publishes readings to Apache Kafka (AWS MSK). A stateful consumer group maintains per-zone 5-minute tumbling windows, computes demand metrics and per-hour EMA anomaly scores, and pushes results to a live Power BI streaming dashboard that updates every few seconds.
 
